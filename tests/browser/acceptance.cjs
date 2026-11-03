@@ -3,12 +3,12 @@ const fs=require('fs');const assert=require('assert/strict');
 (async()=>{
 const browser=await chromium.launch({executablePath:process.env.DUO_BROWSER_BIN || '/Volumes/Extreme SSD/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',headless:true});
 const context=await browser.newContext({viewport:{width:1100,height:850},hasTouch:true});
-const page=await context.newPage();const errors=[];page.on('pageerror',error=>errors.push(error.message));
+const page=await context.newPage();await page.addInitScript(()=>localStorage.setItem('fjgFileFocusDuo-mobile-panel','folders'));const errors=[];page.on('pageerror',error=>errors.push(error.message));
 const results=[];
 async function size(w,h,top){await page.evaluate(({w,h,top})=>{const p=document.getElementById('panel');p.style.width=w+'px';p.style.height=h+'px';p.style.paddingTop=top+'px';},{w,h,top});await page.waitForTimeout(150);}
 async function action(title){await page.getByRole('button',{name:'All File Focus buttons',exact:true}).click({button:'right'});await page.evaluate(title=>{const item=window.lastMenu.find(item=>item.title===title);if(!item)throw Error('Missing action: '+title);return item.run(new MouseEvent('click',{clientX:230,clientY:25}));},title);await page.waitForTimeout(150);}
 for(const [name,w,h,top,expected,minRows] of [['outer-drawer',264,403,4,'drilldown',5],['inner-drawer',390,448,4,'drilldown',8],['outer-tab',382,567,12,'drilldown',5],['inner-tab',867,558,12,'columns',8]]){
-await page.goto('http://127.0.0.1:8847/tests/browser/index.html');await size(w,h,top);
+await page.goto('http://127.0.0.1:8847/tests/browser/index.html');await page.evaluate(()=>document.body.classList.add('is-mobile'));await size(w,h,top);
 await page.locator('.fjgduo-folder-block').filter({hasText:'Projects'}).click();await page.waitForTimeout(200);
 const result=await page.evaluate(()=>{
 const nav=document.querySelector('.duo-navigator'),pane=document.querySelector('.duo-file-column.duo-pane')||document.querySelector('.duo-main-scroll'),toolbar=document.querySelector('.duo-toolbar');const pr=pane.getBoundingClientRect(),tr=toolbar.getBoundingClientRect();

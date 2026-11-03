@@ -19,14 +19,22 @@ export class AllButtonsModal extends Modal {
     }
     onOpen() {
         this.titleEl.textContent='All File Focus buttons';
+        renderActionButtons(this.contentEl, this.sections, (action,event)=>{this.close();this.run(action,event);});
+    }
+
+    onClose(){this.contentEl.replaceChildren();}
+}
+
+/** Shared action list for the sidebar and optional modal. */
+export function renderActionButtons(container:HTMLElement, sections:[string,DuoAction[]][], run:(action:DuoAction,event?:MouseEvent)=>void) {
         const search=document.createElement('input');
         search.type='search'; search.placeholder='Find a button…'; search.setAttribute('aria-label','Find a button');
-        this.contentEl.appendChild(search);
+        container.appendChild(search);
         const hint=document.createElement('p');
         hint.className='duo-buttons-hint'; hint.textContent='Folder buttons use the selected folder. Note buttons use the current note.';
-        this.contentEl.appendChild(hint);
+        container.appendChild(hint);
         const groups:{section:HTMLElement;buttons:HTMLButtonElement[]}[]=[];
-        for (const [title,actions] of this.sections) {
+        for (const [title,actions] of sections) {
             const section=document.createElement('section');
             const heading=document.createElement('h3'); heading.textContent=title; section.appendChild(heading);
             const grid=document.createElement('div'); grid.className='duo-buttons-grid'; section.appendChild(grid);
@@ -36,12 +44,12 @@ export class AllButtonsModal extends Modal {
                 const icon=document.createElement('span'); icon.setAttribute('aria-hidden','true'); setIcon(icon,icons[action.id] || 'circle');
                 const label=document.createElement('span'); label.textContent=action.title;
                 button.append(icon,label);
-                button.addEventListener('click',event=>{this.close();this.run(action,event);});
+                button.addEventListener('click',event=>{run(action,event);});
                 grid.appendChild(button); buttons.push(button);
             }
-            this.contentEl.appendChild(section); groups.push({section,buttons});
+            container.appendChild(section); groups.push({section,buttons});
         }
-        const empty=document.createElement('p'); empty.textContent='No matching buttons.'; empty.hidden=true; empty.setAttribute('role','status'); this.contentEl.appendChild(empty);
+        const empty=document.createElement('p'); empty.textContent='No matching buttons.'; empty.hidden=true; empty.setAttribute('role','status'); container.appendChild(empty);
         search.addEventListener('input',()=>{
             const query=search.value.trim().toLocaleLowerCase(); let count=0;
             for (const {section,buttons} of groups) {
@@ -51,6 +59,4 @@ export class AllButtonsModal extends Modal {
             }
             empty.hidden=count!==0;
         });
-    }
-    onClose(){this.contentEl.replaceChildren();}
 }

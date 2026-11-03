@@ -3006,11 +3006,11 @@ function Tree(props) {
                     (isFolderActive ? ' is-folder-active' : ''), "data-path": props.folder.path }),
                 React.createElement("input", Object.assign({}, getInputProps())),
                 React.createElement("div", { className: "fjgduo-folder-line" },
-                    React.createElement("div", { className: "fjgduo-icon-div", role: "button", tabIndex: 0, "aria-label": `Expand or collapse ${props.folder.name}`, "aria-expanded": open, onKeyDown: e => { if (e.key === 'Enter' || e.key === ' ') {
+                    React.createElement("div", { className: "fjgduo-icon-div", role: "button", tabIndex: 0, "aria-label": `Expand or collapse ${props.folder.name}`, "aria-expanded": open, onClick: obsidian.Platform.isMobile ? toggle : undefined, onKeyDown: e => { if (e.key === 'Enter' || e.key === ' ') {
                             e.preventDefault();
                             toggle();
                         } } },
-                        React.createElement(Icon, { className: "fjgduo-folder-toggle", style: { opacity: props.children ? 1 : 0.3 }, onClick: toggle })),
+                        React.createElement(Icon, { className: "fjgduo-folder-toggle", style: { opacity: props.children ? 1 : 0.3 }, onClick: obsidian.Platform.isMobile ? undefined : toggle })),
                     React.createElement("div", Object.assign({ className: "fjgduo-folder-block", role: "button", tabIndex: 0, onKeyDown: e => { if (e.key === 'Enter' || e.key === ' ') {
                             e.preventDefault();
                             props.onClick();
@@ -4753,65 +4753,95 @@ class AllButtonsModal extends obsidian.Modal {
     }
     onOpen() {
         this.titleEl.textContent = 'All File Focus buttons';
-        const search = document.createElement('input');
-        search.type = 'search';
-        search.placeholder = 'Find a button…';
-        search.setAttribute('aria-label', 'Find a button');
-        this.contentEl.appendChild(search);
-        const hint = document.createElement('p');
-        hint.className = 'duo-buttons-hint';
-        hint.textContent = 'Folder buttons use the selected folder. Note buttons use the current note.';
-        this.contentEl.appendChild(hint);
-        const groups = [];
-        for (const [title, actions] of this.sections) {
-            const section = document.createElement('section');
-            const heading = document.createElement('h3');
-            heading.textContent = title;
-            section.appendChild(heading);
-            const grid = document.createElement('div');
-            grid.className = 'duo-buttons-grid';
-            section.appendChild(grid);
-            const buttons = [];
-            for (const action of actions.filter(a => a.visible !== false)) {
-                const button = document.createElement('button');
-                button.type = 'button';
-                button.dataset.actionId = action.id;
-                const icon = document.createElement('span');
-                icon.setAttribute('aria-hidden', 'true');
-                obsidian.setIcon(icon, icons[action.id] || 'circle');
-                const label = document.createElement('span');
-                label.textContent = action.title;
-                button.append(icon, label);
-                button.addEventListener('click', event => { this.close(); this.run(action, event); });
-                grid.appendChild(button);
-                buttons.push(button);
-            }
-            this.contentEl.appendChild(section);
-            groups.push({ section, buttons });
-        }
-        const empty = document.createElement('p');
-        empty.textContent = 'No matching buttons.';
-        empty.hidden = true;
-        empty.setAttribute('role', 'status');
-        this.contentEl.appendChild(empty);
-        search.addEventListener('input', () => {
-            var _a;
-            const query = search.value.trim().toLocaleLowerCase();
-            let count = 0;
-            for (const { section, buttons } of groups) {
-                let visible = 0;
-                for (const button of buttons) {
-                    button.hidden = !((_a = button.textContent) === null || _a === void 0 ? void 0 : _a.toLocaleLowerCase().includes(query));
-                    if (!button.hidden)
-                        visible++;
-                }
-                section.hidden = visible === 0;
-                count += visible;
-            }
-            empty.hidden = count !== 0;
-        });
+        renderActionButtons(this.contentEl, this.sections, (action, event) => { this.close(); this.run(action, event); });
     }
     onClose() { this.contentEl.replaceChildren(); }
+}
+/** Shared action list for the sidebar and optional modal. */
+function renderActionButtons(container, sections, run) {
+    const search = document.createElement('input');
+    search.type = 'search';
+    search.placeholder = 'Find a button…';
+    search.setAttribute('aria-label', 'Find a button');
+    container.appendChild(search);
+    const hint = document.createElement('p');
+    hint.className = 'duo-buttons-hint';
+    hint.textContent = 'Folder buttons use the selected folder. Note buttons use the current note.';
+    container.appendChild(hint);
+    const groups = [];
+    for (const [title, actions] of sections) {
+        const section = document.createElement('section');
+        const heading = document.createElement('h3');
+        heading.textContent = title;
+        section.appendChild(heading);
+        const grid = document.createElement('div');
+        grid.className = 'duo-buttons-grid';
+        section.appendChild(grid);
+        const buttons = [];
+        for (const action of actions.filter(a => a.visible !== false)) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.dataset.actionId = action.id;
+            const icon = document.createElement('span');
+            icon.setAttribute('aria-hidden', 'true');
+            obsidian.setIcon(icon, icons[action.id] || 'circle');
+            const label = document.createElement('span');
+            label.textContent = action.title;
+            button.append(icon, label);
+            button.addEventListener('click', event => { run(action, event); });
+            grid.appendChild(button);
+            buttons.push(button);
+        }
+        container.appendChild(section);
+        groups.push({ section, buttons });
+    }
+    const empty = document.createElement('p');
+    empty.textContent = 'No matching buttons.';
+    empty.hidden = true;
+    empty.setAttribute('role', 'status');
+    container.appendChild(empty);
+    search.addEventListener('input', () => {
+        var _a;
+        const query = search.value.trim().toLocaleLowerCase();
+        let count = 0;
+        for (const { section, buttons } of groups) {
+            let visible = 0;
+            for (const button of buttons) {
+                button.hidden = !((_a = button.textContent) === null || _a === void 0 ? void 0 : _a.toLocaleLowerCase().includes(query));
+                if (!button.hidden)
+                    visible++;
+            }
+            section.hidden = visible === 0;
+            count += visible;
+        }
+        empty.hidden = count !== 0;
+    });
+}
+
+function ShortcutPanel({ sections, run, context }) {
+    const host = reactExports.useRef(null);
+    reactExports.useEffect(() => {
+        const node = host.current;
+        if (!node)
+            return;
+        const old = node.querySelector('input');
+        const query = (old === null || old === void 0 ? void 0 : old.value) || '';
+        const focused = document.activeElement === old;
+        node.replaceChildren();
+        renderActionButtons(node, sections(), run);
+        const search = node.querySelector('input');
+        if (search) {
+            search.value = query;
+            search.dispatchEvent(new Event('input'));
+            if (focused)
+                search.focus();
+        }
+    });
+    return React.createElement("section", { className: "duo-shortcuts", "aria-label": "File Focus shortcuts" },
+        React.createElement("p", { className: "duo-shortcut-context" },
+            "Selected folder: ",
+            context),
+        React.createElement("div", { ref: host }));
 }
 
 function AdaptiveNavigator({ plugin }) {
@@ -4822,6 +4852,21 @@ function AdaptiveNavigator({ plugin }) {
     const host = reactExports.useRef(null), pane = reactExports.useRef(null), fileStart = reactExports.useRef(null);
     const folderActions = reactExports.useRef([]), fileActions = reactExports.useRef([]);
     const [width, setWidth] = reactExports.useState(0);
+    const [shortcuts, setShortcuts] = reactExports.useState(() => obsidian.Platform.isMobile && localStorage.getItem('fjgFileFocusDuo-mobile-panel') !== 'folders');
+    const [, refreshShortcuts] = reactExports.useState(0);
+    const choosePanel = (show) => { setShortcuts(show); localStorage.setItem('fjgFileFocusDuo-mobile-panel', show ? 'shortcuts' : 'folders'); };
+    reactExports.useEffect(() => {
+        const select = (event) => {
+            var _a;
+            const target = plugin.app.vault.getAbstractFileByPath(((_a = event.detail) === null || _a === void 0 ? void 0 : _a.path) || '');
+            if (obsidian.Platform.isMobile && target instanceof obsidian.TFolder) {
+                setFolder(target);
+                setPath(target.path);
+            }
+        };
+        window.addEventListener('fjg-vcc-folder-context', select);
+        return () => window.removeEventListener('fjg-vcc-folder-context', select);
+    }, []);
     const pendingJump = reactExports.useRef(false);
     const [jump, setJump] = reactExports.useState(0);
     const [ratio, setRatio] = reactExports.useState(() => {
@@ -4865,6 +4910,7 @@ function AdaptiveNavigator({ plugin }) {
     }, [path, wide, files, focusMode, jump]);
     reactExports.useEffect(() => {
         const choose = (event) => {
+            setShortcuts(false);
             const selected = event.detail;
             if (!(selected instanceof obsidian.TFolder))
                 return;
@@ -4879,6 +4925,7 @@ function AdaptiveNavigator({ plugin }) {
         return () => window.removeEventListener(FOLDER_SELECTED, choose);
     }, [wide, files]);
     const navigate = (target) => {
+        setShortcuts(false);
         setRootFilesVisible(false);
         setFolder(target);
         setPath(target.path);
@@ -4933,33 +4980,40 @@ function AdaptiveNavigator({ plugin }) {
         }
         menu.showAtPosition({ x: event.clientX, y: event.clientY });
     };
-    const allButtons = () => {
-        const browseFolders = () => { setView('file'); if (pane.current)
+    const actionSections = () => {
+        const browseFolders = () => { setShortcuts(false); setView('file'); if (pane.current)
             pane.current.scrollTop = 0; };
-        new AllButtonsModal(plugin.app, [
+        return [
             ['Navigation', [
                     { id: 'back', title: 'Back to parent folder', run: goBack },
                     { id: 'folders', title: 'Go Back to Folder View / Close File Pane', run: browseFolders },
                     { id: 'root', title: 'Jump to vault root', run: () => navigate(plugin.app.vault.getRoot()) },
                     ...(atRoot ? [{ id: 'root-files', title: rootFilesVisible ? 'Hide vault-root files' : 'Show vault-root files', run: () => setRootFilesVisible(value => !value) }] : []),
-                    { id: 'recent', title: 'Recent Notes', run: () => setView('recent') },
-                    { id: 'bookmarks', title: 'Bookmarks', run: () => setView('bookmarks') },
+                    { id: 'recent', title: 'Recent Notes', run: () => { setShortcuts(false); setView('recent'); } },
+                    { id: 'bookmarks', title: 'Bookmarks', run: () => { setShortcuts(false); setView('bookmarks'); } },
                 ]],
             ['Folder buttons', folderActions.current],
-            ['Note buttons', fileActions.current.map(action => action.id === 'search' ? Object.assign(Object.assign({}, action), { run: () => { if (focusMode)
+            ['Note buttons', fileActions.current.map(action => action.id === 'search' ? Object.assign(Object.assign({}, action), { run: () => { setShortcuts(false); if (focusMode)
                         window.dispatchEvent(new Event(FOCUS_SEARCH));
                     else {
                         if (atRoot)
                             setRootFilesVisible(true);
                         fileAction('search');
                     } } }) : action)],
-        ], run).open();
+        ];
+    };
+    const allButtons = () => new AllButtonsModal(plugin.app, actionSections(), run).open();
+    const runShortcut = (action, event) => {
+        // Resolve the current handler: note/folder context can change while this panel stays open.
+        const latest = actionSections().reduce((all, [, items]) => all.concat(items), []).find(item => item.id === action.id) || action;
+        run(latest, event);
+        requestAnimationFrame(() => refreshShortcuts(value => value + 1));
     };
     const toolbar = React.createElement("div", { className: `duo-toolbar${plugin.settings.fixedHeaderInFileList ? ' duo-toolbar-fixed' : ''}`, role: "toolbar", "aria-label": "File Focus Duo" },
         React.createElement("button", Object.assign({ className: "duo-back", "aria-label": `Back from ${path || 'vault root'}. Hold to jump to root.`, title: path || 'Vault root', onClick: goBack, onContextMenu: e => { e.preventDefault(); navigate(plugin.app.vault.getRoot()); } }, backPress),
             React.createElement(FaArrowCircleLeft, null),
             React.createElement("span", null, focusMode ? view$1 : ((path === null || path === void 0 ? void 0 : path.split('/').pop()) || plugin.app.vault.getName()))),
-        React.createElement("button", { "aria-label": "Search", title: "Search", onClick: e => { if (focusMode)
+        React.createElement("button", { "aria-label": "Search", title: "Search", onClick: e => { setShortcuts(false); if (focusMode)
                 window.dispatchEvent(new Event(FOCUS_SEARCH));
             else {
                 if (atRoot)
@@ -4969,9 +5023,9 @@ function AdaptiveNavigator({ plugin }) {
             React.createElement(IoIosSearch, null)),
         React.createElement("button", { "aria-label": "New note", title: "New note", onClick: e => fileAction('new-note', e) },
             React.createElement(IoIosAddCircle, null)),
-        React.createElement("button", { "aria-label": "Recent", title: "Recent", "aria-pressed": view$1 === 'recent', onClick: () => setView('recent') },
+        React.createElement("button", { "aria-label": "Recent", title: "Recent", "aria-pressed": view$1 === 'recent', onClick: () => { setShortcuts(false); setView('recent'); } },
             React.createElement(FaHistory, null)),
-        React.createElement("button", { "aria-label": "Bookmarks", title: "Bookmarks", "aria-pressed": view$1 === 'bookmarks', onClick: () => setView('bookmarks') },
+        React.createElement("button", { "aria-label": "Bookmarks", title: "Bookmarks", "aria-pressed": view$1 === 'bookmarks', onClick: () => { setShortcuts(false); setView('bookmarks'); } },
             React.createElement(FaRegBookmark, null)),
         React.createElement("button", { "aria-label": "All File Focus buttons", title: "All File Focus buttons", onClick: allButtons, onContextMenu: e => { e.preventDefault(); overflow(e); } }, "\u22EF"));
     const resize = (e) => {
@@ -4985,7 +5039,11 @@ function AdaptiveNavigator({ plugin }) {
     return React.createElement("div", { ref: host, className: `duo-navigator ${wide ? 'duo-wide' : 'duo-compact'} ${plugin.settings.fixedHeaderInFileList ? '' : 'duo-unpinned'} ${showFiles ? '' : 'duo-root-folders-only'}`, "data-layout": wide ? 'columns' : 'drilldown', style: { '--duo-folder-ratio': `${ratio * 100}%` } },
         React.createElement("div", { ref: pane, className: "duo-pane duo-main-scroll" },
             toolbar,
-            React.createElement("div", { className: "duo-columns", hidden: focusMode },
+            obsidian.Platform.isMobile && React.createElement("div", { className: "duo-panel-switch", role: "group", "aria-label": "Left panel contents" },
+                React.createElement("button", { "aria-pressed": shortcuts, onClick: () => choosePanel(true) }, "Shortcuts"),
+                React.createElement("button", { "aria-pressed": !shortcuts, onClick: () => choosePanel(false) }, "Folders")),
+            shortcuts && React.createElement(ShortcutPanel, { context: path || plugin.app.vault.getName(), sections: actionSections, run: runShortcut }),
+            React.createElement("div", { className: "duo-columns", hidden: focusMode || shortcuts },
                 React.createElement("div", { className: "duo-folder-column", "aria-label": "Folders" },
                     React.createElement(MainFolder, { plugin: plugin, adaptive: true, actionsRef: folderActions })),
                 wide && showFiles && React.createElement("div", { className: "duo-divider", role: "separator", "aria-label": "Resize folder column", "aria-orientation": "vertical", "aria-valuemin": 25, "aria-valuemax": 55, "aria-valuenow": Math.round(ratio * 100), tabIndex: 0, onPointerDown: e => { e.currentTarget.setPointerCapture(e.pointerId); resize(e); }, onPointerMove: e => { if (e.currentTarget.hasPointerCapture(e.pointerId))
@@ -4997,7 +5055,7 @@ function AdaptiveNavigator({ plugin }) {
                     } } }),
                 React.createElement("div", { ref: fileStart, hidden: !showFiles, className: `duo-file-column${wide ? ' duo-pane' : ''}`, "aria-label": "Folder files" },
                     React.createElement(FileComponent, { plugin: plugin, wide: wide, adaptive: true, actionsRef: fileActions }))),
-            focusMode && React.createElement(FocusPanel, { plugin: plugin, mode: view$1, adaptive: true })));
+            focusMode && !shortcuts && React.createElement(FocusPanel, { plugin: plugin, mode: view$1, adaptive: true })));
 }
 
 const SingleViewVertical = (props) => {
@@ -7338,7 +7396,12 @@ class FileTreeAlternativePlugin extends obsidian.Plugin {
                 leafs.forEach((leaf) => leaf.view.activate());
             }
             if (showAfterAttach) {
-                yield Promise.all(leafs.map((leaf) => this.app.workspace.revealLeaf(leaf)));
+                // Revealing every copy races a tab against the sidebar on mobile.
+                const target = leafs.find(leaf => leaf.getRoot() === this.app.workspace.leftSplit) || leafs.find(leaf => leaf === this.app.workspace.activeLeaf) || leafs[0];
+                if (obsidian.Platform.isMobile)
+                    yield this.app.workspace.revealLeaf(target);
+                else
+                    yield Promise.all(leafs.map((leaf) => this.app.workspace.revealLeaf(leaf)));
                 yield this.waitForFileTreeViewReady();
             }
         });

@@ -1,4 +1,4 @@
-import { TFolder, Notice } from 'obsidian';
+import { TFolder, Notice, Platform } from 'obsidian';
 import React, { useState, useMemo, useEffect } from 'react';
 import FileTreeAlternativePlugin from 'main';
 import Dropzone from 'react-dropzone';
@@ -164,8 +164,8 @@ export default function Tree(props: TreeProps) {
                             <input {...getInputProps()} />
 
                             <div className="fjgduo-folder-line">
-                                <div className="fjgduo-icon-div" role="button" tabIndex={0} aria-label={`Expand or collapse ${props.folder.name}`} aria-expanded={open} onKeyDown={e=>{if(e.key === 'Enter'||e.key === ' '){e.preventDefault();toggle();}}}>
-                                    <Icon className="fjgduo-folder-toggle" style={{ opacity: props.children ? 1 : 0.3 }} onClick={toggle} />
+                                <div className="fjgduo-icon-div" role="button" tabIndex={0} aria-label={`Expand or collapse ${props.folder.name}`} aria-expanded={open} onClick={Platform.isMobile ? toggle : undefined} onKeyDown={e=>{if(e.key === 'Enter'||e.key === ' '){e.preventDefault();toggle();}}}>
+                                    <Icon className="fjgduo-folder-toggle" style={{ opacity: props.children ? 1 : 0.3 }} onClick={Platform.isMobile ? undefined : toggle} />
                                 </div>
 
                                 <div

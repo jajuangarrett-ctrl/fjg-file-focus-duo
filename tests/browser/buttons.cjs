@@ -3,6 +3,7 @@ const assert=require('assert/strict');
 (async()=>{
 const browser=await chromium.launch({executablePath:process.env.DUO_BROWSER_BIN || '/Volumes/Extreme SSD/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',headless:true});
 const page=await browser.newPage({viewport:{width:390,height:700},hasTouch:true});
+await page.addInitScript(()=>localStorage.setItem('fjgFileFocusDuo-mobile-panel','folders'));
 const errors=[];page.on('pageerror',e=>errors.push(e.message));
 await page.goto('http://127.0.0.1:8847/tests/browser/index.html');
 await page.waitForTimeout(250);

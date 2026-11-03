@@ -1047,3 +1047,15 @@ svg.fjgduo-folder-toggle path {
 .duo-buttons-grid button > span:first-child { display:flex; flex:none; }
 .duo-buttons-grid button > span:last-child { overflow-wrap:anywhere; }
 .duo-buttons-grid button[hidden], .duo-all-buttons section[hidden] { display:none; }
+
+.duo-panel-switch { display:flex; gap:8px; padding:4px 8px; }
+.duo-panel-switch button { flex:1; min-height:44px; min-width:44px; touch-action:manipulation; }
+.duo-panel-switch button[aria-pressed="true"] { background:var(--interactive-accent); color:var(--text-on-accent); }
+.duo-shortcuts { padding:0 8px 12px; }
+.duo-shortcuts input { width:100%; min-height:44px; }
+.duo-shortcuts .duo-buttons-grid { grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr)); }
+.duo-shortcuts .duo-buttons-grid button { min-width:44px; font-size:14px; touch-action:manipulation; }
+.duo-shortcuts section[hidden] { display:none; }
+.duo-shortcut-context { overflow-wrap:anywhere; color:var(--text-muted); }
+.duo-navigator.duo-wide .duo-columns[hidden] { display:none; }
+body.is-mobile .duo-navigator.duo-wide .duo-columns { height:calc(100% - 96px); }

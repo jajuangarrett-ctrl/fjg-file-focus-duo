@@ -540,7 +540,10 @@ export default class FileTreeAlternativePlugin extends Plugin {
             leafs.forEach((leaf) => (leaf.view as FileTreeView).activate());
         }
         if (showAfterAttach) {
-            await Promise.all(leafs.map((leaf) => this.app.workspace.revealLeaf(leaf)));
+            // Revealing every copy races a tab against the sidebar on mobile.
+            const target = leafs.find(leaf => leaf.getRoot() === this.app.workspace.leftSplit) || leafs.find(leaf => leaf === this.app.workspace.activeLeaf) || leafs[0];
+            if (Platform.isMobile) await this.app.workspace.revealLeaf(target);
+            else await Promise.all(leafs.map((leaf) => this.app.workspace.revealLeaf(leaf)));
             await this.waitForFileTreeViewReady();
         }
     };
