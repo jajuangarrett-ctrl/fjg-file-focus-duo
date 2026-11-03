@@ -3,7 +3,7 @@ const {chromium}=require('playwright-core');const fs=require('fs');const assert=
 (async()=>{
  const browser=await chromium.launch({executablePath:process.env.DUO_BROWSER_BIN || '/Volumes/Extreme SSD/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',headless:true});
  const page=await browser.newPage({viewport:{width:867,height:558}});
- await page.setContent('<body><div class="sidebar-toggle-button"><div class="clickable-icon">◧</div></div><div class="fjg-vcc" data-theme="light"><main class="fjg-vcc-content"><div class="fjg-vcc-page-layout fjg-vcc-program-layout"><section class="fjg-vcc-folder-rail"><div class="fjg-vcc-panel-header"><button class="fjg-vcc-folder-rail-toggle">Show list</button></div><div class="fjg-vcc-panel-body">Departments</div></section><section>Opened folder contents</section></div></main></div></body>');
+ await page.setContent('<body><div class="sidebar-toggle-button"><div class="clickable-icon">◧</div></div><div class="fjg-vcc" data-theme="light"><header class="fjg-vcc-header">Dashboard</header><nav class="fjg-vcc-route-tabs">Routes</nav><nav class="fjg-vcc-mobile-dock"><button class="fjg-vcc-mobile-dock-item">Home</button></nav><main class="fjg-vcc-content"><div class="fjg-vcc-page-layout fjg-vcc-program-layout"><section class="fjg-vcc-folder-rail"><div class="fjg-vcc-panel-header"><button class="fjg-vcc-folder-rail-toggle">Show list</button></div><div class="fjg-vcc-panel-body">Departments</div></section><section>Opened folder contents</section></div></main></div></body>');
  await page.addStyleTag({content:fs.readFileSync(process.env.VCC_CSS,'utf8')});
  const columns=()=>page.locator('.fjg-vcc-program-layout').evaluate(e=>getComputedStyle(e).gridTemplateColumns.split(' ').length);
  assert.equal(await columns(),1,'desktop retains original viewport layout');
@@ -15,6 +15,13 @@ const {chromium}=require('playwright-core');const fs=require('fs');const assert=
  assert.equal(await page.locator('.fjg-vcc-panel-body').isVisible(),false);
  assert.ok(await page.locator('.fjg-vcc-folder-rail-toggle').evaluate(e=>{const r=e.getBoundingClientRect();return r.width>=44&&r.height>=44}));
  assert.ok(await page.locator('.sidebar-toggle-button > .clickable-icon').evaluate(e=>{const r=e.getBoundingClientRect();return r.width>=44&&r.height>=44}));
+ await page.setViewportSize({width:567,height:382});
+ await page.evaluate(()=>document.querySelector('.fjg-vcc').setAttribute('data-mobile-folder-detail','true'));
+ for(const cls of ['.fjg-vcc-header','.fjg-vcc-route-tabs']) assert.equal(await page.locator(cls).evaluate(e=>getComputedStyle(e).position),'static');
+ assert.equal(await page.locator('.fjg-vcc-mobile-dock-item').evaluate(e=>getComputedStyle(e).flexDirection),'row');
+ assert.ok(await page.locator('.fjg-vcc-mobile-dock-item').evaluate(e=>e.getBoundingClientRect().height>=44));
+ await page.evaluate(()=>document.body.classList.remove('is-mobile'));
+ assert.equal(await page.locator('.fjg-vcc-header').evaluate(e=>getComputedStyle(e).position),'sticky','desktop keeps original header rule');
  console.log('PASS: mobile wide columns, narrow panel in wide viewport, collapsed list/reopen button, 44px sidebar toggles, desktop unchanged');
  await browser.close();
 })().catch(e=>{console.error(e);process.exit(1)});
