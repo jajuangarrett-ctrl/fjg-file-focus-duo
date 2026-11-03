@@ -1,0 +1,9 @@
+{
+  "id": "fjg-file-focus-duo",
+  "name": "FJG File Focus Duo",
+  "version": "0.1.4",
+  "minAppVersion": "1.5.0",
+  "description": "Adaptive folder and file navigation for Duo panels. Independent local preview.",
+  "author": "Franklin Garrett",
+  "isDesktopOnly": false
+}

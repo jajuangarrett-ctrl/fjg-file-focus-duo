@@ -1,0 +1,32 @@
+const {chromium}=require('playwright-core');
+const assert=require('assert/strict');
+(async()=>{
+const browser=await chromium.launch({executablePath:process.env.DUO_BROWSER_BIN || '/Volumes/Extreme SSD/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',headless:true});
+const page=await browser.newPage({viewport:{width:390,height:700},hasTouch:true});
+const errors=[];page.on('pageerror',e=>errors.push(e.message));
+await page.goto('http://127.0.0.1:8847/tests/browser/index.html');
+await page.waitForTimeout(250);
+async function open(){await page.getByRole('button',{name:'All File Focus buttons',exact:true}).click();}
+const sheet=page.locator('.duo-all-buttons');
+await open();
+const expected=['home','brief','tasks','agenda','voice','dashboard','new-folder','folder-tags','folder-navigator','omnisearch','follow','folder-sort','folder-path','collapse','expand','search','new-note','delete-note','quick-format','properties','move-note','auto-title','semantic-links','copy-text','copy-path','file-sort','back','folders','root','recent','bookmarks'];
+for(const id of expected)assert.equal(await sheet.locator(`[data-action-id="${id}"]`).count(),1,`Missing button ${id}`);
+assert.ok((await sheet.locator('button').evaluateAll(bs=>bs.every(b=>b.getBoundingClientRect().height>=44))));
+await page.getByRole('searchbox',{name:'Find a button'}).fill('folder navigator');
+assert.equal(await sheet.locator('button:visible').count(),1);
+await sheet.getByRole('button',{name:'Open Folder Navigator',exact:true}).click();
+assert.equal(await sheet.count(),0);assert.ok((await page.evaluate(()=>window.notices)).some(n=>n.includes('FJG Note Navigator Toolbar')));
+await page.evaluate(()=>{window.fixture.app.commands.commands['fjg-note-navigator-toolbar:open-folder-navigator']={};window.fixture.app.commands.executeCommandById=id=>{window.executedCommand=id;return true;};});
+await open();await sheet.getByRole('button',{name:'Open Folder Navigator',exact:true}).click();
+assert.equal(await page.evaluate(()=>window.executedCommand),'fjg-note-navigator-toolbar:open-folder-navigator');
+await open();await page.getByRole('searchbox',{name:'Find a button'}).fill('nonexistent shortcut');
+assert.equal(await sheet.locator('button:visible').count(),0);assert.ok(await sheet.getByText('No matching buttons.').isVisible());
+await page.getByRole('searchbox',{name:'Find a button'}).fill('');
+await sheet.getByRole('button',{name:'Search files by name or tag',exact:true}).click();
+assert.ok(await page.getByRole('searchbox',{name:'Search files by name or tag'}).isVisible());
+await page.getByRole('searchbox',{name:'Search files by name or tag'}).fill('all: Visible text file');await page.waitForTimeout(200);
+assert.ok(await page.getByRole('button',{name:'Open Visible text file',exact:true}).isVisible());
+assert.deepEqual(errors,[]);
+console.log('PASS: original toolbar action coverage, 44px targets, searchable buttons/empty state, Folder Navigator missing/available, root search, TXT visibility; no page errors.');
+await browser.close();
+})().catch(e=>{console.error(e);process.exit(1)});
