@@ -1,3 +1,4 @@
+import { LuMic } from 'react-icons/lu';
 import React, { useLayoutEffect, useEffect, useRef, useState } from 'react';
 import { Menu, Notice, TFolder, Platform } from 'obsidian';
 import { useRecoilState } from 'recoil';
@@ -172,6 +173,7 @@ export function AdaptiveNavigator({plugin, fileTreeView}: {plugin: FileTreeAlter
         <button data-ignore-swipe="true" aria-label="New note" title="New note" onClick={e => fileAction('new-note',e)}><Icons.IoIosAddCircle/></button>
         <button data-ignore-swipe="true" aria-label="Recent" title="Recent" aria-pressed={view==='recent'} onClick={() => {setShortcuts(false);setView('recent');}}><Icons.FaHistory/></button>
         <button data-ignore-swipe="true" aria-label="Bookmarks" title="Bookmarks" aria-pressed={view==='bookmarks'} onClick={() => {setShortcuts(false);setView('bookmarks');}}><Icons.FaRegBookmark/></button>
+        <button data-ignore-swipe="true" aria-label="Talk to Vault" title="Talk to Vault" onClick={() => plugin.openVaultVoice({ folder: path, note: plugin.app.workspace.getActiveFile()?.path || '' })}><LuMic aria-hidden="true"/></button>
         <button data-ignore-swipe="true" aria-label="All File Focus buttons" title="All File Focus buttons" onClick={allButtons} onContextMenu={e=>{e.preventDefault();overflow(e);}}>⋯</button>
         </div>
     </div>;

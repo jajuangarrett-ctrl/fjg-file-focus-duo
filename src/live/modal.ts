@@ -34,11 +34,11 @@ export class VaultVoiceModal extends Modal {
     this.modalEl.addClass('fjgduo-vault-live-modal');
     const root = this.contentEl;
     root.createEl('p', { cls: 'fjgduo-vault-live-intro', text: 'Ask about your notes, capture a thought, or say what to update. Clear edits save immediately.' });
-    root.createEl('p', { cls: 'fjgduo-vault-live-caption', text: 'Microphone audio and relevant note excerpts go to OpenAI while connected. Uses your saved API key.' });
-    this.status = root.createEl('p', { cls: 'fjgduo-vault-live-status', text: 'Microphone off — press Start conversation', attr: { role: 'status', 'aria-live': 'polite' } });
+    root.createEl('p', { cls: 'fjgduo-vault-live-caption', text: 'Starting sends microphone audio, the vault name, selected paths and relevant note excerpts to OpenAI. API charges may apply. ' + (this.plugin.settings.liveApiKey?.trim() ? 'Uses the key saved in File Focus Duo.' : 'Uses the key saved in Objective Manager for this conversation without copying or saving it in Duo.') });
+    this.status = root.createEl('p', { cls: 'fjgduo-vault-live-status', text: 'Microphone off — review the details before starting', attr: { role: 'status', 'aria-live': 'polite' } });
     this.coverage = root.createEl('p', { cls: 'fjgduo-vault-live-coverage', attr: { role: 'status' } });
     const controls = root.createDiv({ cls: 'fjgduo-vault-live-controls' });
-    this.startButton = controls.createEl('button', { text: 'Start conversation', cls: 'mod-cta' });
+    this.startButton = controls.createEl('button', { text: this.startLabel(), cls: 'mod-cta' });
     this.startButton.addEventListener('click', () => void this.start());
     this.muteButton = controls.createEl('button', { text: 'Mute microphone', attr: { 'aria-pressed': 'false' } });
     this.muteButton.disabled = true;
@@ -57,6 +57,9 @@ export class VaultVoiceModal extends Modal {
     this.transcript.createEl('p', { cls: 'fjgduo-vault-live-caption', text: 'Try: “Find my notes about summer planning” or “Add this thought to my meeting note.”' });
     this.sources = root.createDiv({ cls: 'fjgduo-vault-live-sources', attr: { 'aria-label': 'Source notes' } });
     this.saved = root.createDiv({ cls: 'fjgduo-vault-live-saved', attr: { role: 'log', 'aria-label': 'Saved changes', 'aria-live': 'polite' } });
+  }
+  private startLabel(): string {
+    return this.plugin.settings.liveApiKey?.trim() ? 'Agree and start conversation' : 'Use Objective Manager key and start';
   }
   private file(path: string): TFile {
     const file = this.app.vault.getAbstractFileByPath(path);
@@ -105,14 +108,14 @@ export class VaultVoiceModal extends Modal {
         time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone, selected_folder: this.voiceSelection.folder,
         selected_note: this.voiceSelection.note || this.app.workspace.getActiveFile()?.path || '', search_scope: 'Entire vault unless the user requests a folder' });
       await session.start(key, this.plugin.settings.liveBackendModel, context);
-    } catch { session.dispose(); this.setState('error', 'Could not load the saved OpenAI key. Check File Focus voice settings.'); }
+    } catch { session.dispose(); this.setState('error', 'Could not read the saved key. Check the Vault voice API key in File Focus Duo settings; no connection was made.'); }
   }
   onClose(): void { this.closed = true; this.resultsModal?.close(); this.session?.end(); this.release(); }
   shutdown(): void { this.session?.end(); this.session?.dispose(); this.close(); }
   private setState(state: LiveState, message: string): void {
     if (this.closed) return;
     this.status.setText(message); this.status.dataset.state = state;
-    this.startButton.setText(state === "connecting" ? "Connecting…" : state === "connected" ? "Conversation active" : "Start conversation");
+    this.startButton.setText(state === "connecting" ? "Connecting…" : state === "connected" ? "Conversation active" : this.startLabel());
     this.status.setAttribute("aria-busy", String(state === "connecting"));
     this.startButton.disabled = ['connecting', 'connected', 'ending'].includes(state);
     this.muteButton.disabled = state !== 'connected'; this.endButton.disabled = !['connecting', 'connected'].includes(state);

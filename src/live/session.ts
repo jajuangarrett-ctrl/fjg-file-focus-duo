@@ -1,5 +1,6 @@
 import { Platform, requestUrl } from "obsidian";
 import { LiveToolLoop } from "./tool-loop";
+import { voiceFailure } from "./failure";
 import { backendInstructions, LIVE_INSTRUCTIONS, LIVE_TOOLS } from "./vault-tools";
 
 export type LiveState = "idle" | "connecting" | "connected" | "ending" | "ended" | "error";
@@ -41,7 +42,7 @@ export class VaultLiveSession {
     if (this.disposed) return;
     this.callbacks.state("connecting", "Connecting… Please wait before speaking.");
     try {
-      if (!apiKey.trim()) throw new Error("Add your OpenAI API key in FJG File Focus Duo settings.");
+      if (!apiKey.trim()) throw new Error("No saved voice key was found. Add a key in File Focus Duo settings or save one in Objective Manager before starting.");
       if (!navigator.mediaDevices?.getUserMedia || typeof RTCPeerConnection === "undefined") throw new Error("Live voice is not supported on this device.");
       const peer = this.peer = new RTCPeerConnection();
       peer.addEventListener("track", (event) => {
@@ -79,11 +80,14 @@ export class VaultLiveSession {
         body: JSON.stringify(liveRequest(sdp, backendModel, context)), throw: false });
       if (this.disposed) return;
       if (response.status >= 400) {
-        const hint = response.status === 401 ? "Check your saved OpenAI API key." : response.status === 403 || response.status === 404 ? "Check that your OpenAI project has GPT-Live-1 and backend model access." : response.status === 429 ? "Check your OpenAI quota or try again later." : "Try again after checking your OpenAI account and network.";
-        throw new Error(`Voice connection failed (HTTP ${response.status}). ${hint}`);
+        let error: { code?: unknown; type?: unknown } | undefined;
+        try { error = response.json?.error; } catch { /* Non-JSON failures still report status safely. */ }
+        throw new Error(`Voice connection failed (HTTP ${response.status}). ${voiceFailure(response.status, error)}`);
       }
-      if (typeof response.json?.transport?.sdp !== "string") throw new Error("OpenAI did not return a voice connection answer.");
-      await peer.setRemoteDescription({ type: "answer", sdp: response.json.transport.sdp });
+      let answer: unknown;
+      try { answer = response.json?.transport?.sdp; } catch { /* Do not expose a provider response body. */ }
+      if (typeof answer !== "string" || !answer.trim()) throw new Error("OpenAI did not return a voice connection answer. Update the plugin and check API model access.");
+      await peer.setRemoteDescription({ type: "answer", sdp: answer });
       // POST starts the session. Wait for session.started; never send session.start.
     } catch (error) {
       if (!this.disposed) this.fail(error instanceof Error && error.name === "NotAllowedError"
@@ -145,9 +149,11 @@ export class VaultLiveSession {
       this.dispose();
       this.callbacks.state("ended", "Conversation ended.");
     } else if (event.type === "error") {
-      this.fail("OpenAI reported a voice session error. Ended the connection; saved changes remain saved.");
+      this.fail(`${voiceFailure(undefined, event.error)} Ended the connection; saved changes remain saved.`);
     } else if (["session.input_transcript.delta", "session.output_transcript.delta"].includes(event.type) && typeof event.delta === "string") {
       this.callbacks.transcript(event.type === "session.input_transcript.delta" ? "You" : "Assistant", event.delta);
+    } else if (event.type === "response.event" && event.event?.type === "response.failed") {
+      this.fail(`The vault assistant failed. ${voiceFailure(undefined, event.event.response?.error)} Saved changes remain saved.`);
     } else if (event.type === "response.event" && this.active) {
       void this.loop.handle(event).catch(() => this.fail("Could not finish a voice note request. Check the dashboard before trying the change again."));
     }

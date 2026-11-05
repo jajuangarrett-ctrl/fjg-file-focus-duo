@@ -118,7 +118,7 @@ export class FileTreeAlternativePluginSettingsTab extends PluginSettingTab {
         new Setting(containerEl).setName('Duo two-column minimum width').setDesc('Panel width in CSS pixels. 560 separates the four measured Duo layouts; tune after device testing.').addText(text => text.setValue(String(this.plugin.settings.duoColumnWidth)).onChange(async value => { const width = Number(value); if (Number.isFinite(width) && width >= 440 && width <= 1000) { this.plugin.settings.duoColumnWidth = width; await this.plugin.saveSettings(); this.refreshView(); } }));
         new Setting(containerEl).setName('Use legacy desktop layout').setDesc('Desktop only. Restore the Evernote layout setting below. Mobile always uses the adaptive navigator.').addToggle(toggle => toggle.setValue(this.plugin.settings.duoDesktopLegacyLayout).onChange(async value => { this.plugin.settings.duoDesktopLegacyLayout = value; await this.plugin.saveSettings(); this.refreshView(); }));
 
-        new Setting(containerEl).setName('Vault voice API key').setDesc('Optional. Stored in plain text in this plugin’s data.json. Leave empty to use the existing device key without copying it here.')
+        new Setting(containerEl).setName('Vault voice API key').setDesc('Optional. Stored in plain text in this plugin’s data.json. Leave empty to choose the saved Objective Manager key for each conversation, without copying it into Duo.')
             .addText((text) => { text.inputEl.type = 'password'; text.setValue(this.plugin.settings.liveApiKey).onChange(async (value) => {
                 this.plugin.settings.liveApiKey = value.trim(); await this.plugin.saveSettings();
             }); });

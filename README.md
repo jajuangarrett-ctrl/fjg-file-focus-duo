@@ -1,3 +1,13 @@
+## Talk to Vault — 0.1.9
+
+The adaptive toolbar now includes **Talk to Vault** beside Bookmarks and More. Opening it leaves the microphone off. The Start button names the key source and authorizes that conversation: microphone audio, vault name, selected paths and relevant note excerpts are sent to OpenAI; clear requested edits save immediately and API charges may apply.
+
+Duo first uses its own configured key. If that is blank, the explicit **Use Objective Manager key and start** button reads Objective Manager’s saved key for that conversation. Duo does not copy it into its settings or invoke Objective Manager’s key recovery/persistence methods. This does not configure a new key or grant automatic access on modal open.
+
+Connection failures now distinguish authentication, model/configuration and quota errors using fixed messages without displaying provider response bodies. Backend `response.failed` events terminate the session and show the error instead of silently leaving an unusable conversation active. The GPT-Live session endpoint and protocol remain unchanged.
+
+Validation commands: `npm run typecheck`, `npm test`, `npm run test:voice`, `npm run build`, and (with the synthetic browser fixture running) `node tests/browser/voice-toolbar.cjs`. Synthetic tests use dummy keys and notes; they do not verify live account/model access or physical-device audio. The standard `fjg-file-focus` plugin is outside this update.
+
 # FJG File Focus Duo
 
 Version 0.1.5. Private repository: https://github.com/jajuangarrett-ctrl/fjg-file-focus-duo. Independent Obsidian plugin derived from Franklin Garrett’s FJG File Focus 0.3.7 (9e4c09e), itself based on ozntel/file-tree-alternative. The inherited package declares MIT licensing; upstream attribution remains applicable.

@@ -80,6 +80,14 @@ var reactDom = /*@__PURE__*/getDefaultExportFromCjs(reactDomExports);
 var createRoot;
 var m=reactDomExports;{createRoot = m.createRoot;m.hydrateRoot;}
 
+var DefaultContext={color:undefined,size:undefined,className:undefined,style:undefined,attr:undefined};var IconContext=React.createContext&&/*#__PURE__*/React.createContext(DefaultContext);
+
+var __assign=window&&window.__assign||function(){__assign=Object.assign||function(t){for(var s,i=1,n=arguments.length;i<n;i++){s=arguments[i];for(var p in s)if(Object.prototype.hasOwnProperty.call(s,p))t[p]=s[p];}return t;};return __assign.apply(this,arguments);};var __rest=window&&window.__rest||function(s,e){var t={};for(var p in s)if(Object.prototype.hasOwnProperty.call(s,p)&&e.indexOf(p)<0)t[p]=s[p];if(s!=null&&typeof Object.getOwnPropertySymbols==="function")for(var i=0,p=Object.getOwnPropertySymbols(s);i<p.length;i++){if(e.indexOf(p[i])<0&&Object.prototype.propertyIsEnumerable.call(s,p[i]))t[p[i]]=s[p[i]];}return t;};function Tree2Element(tree){return tree&&tree.map(function(node,i){return/*#__PURE__*/React.createElement(node.tag,__assign({key:i},node.attr),Tree2Element(node.child));});}function GenIcon(data){// eslint-disable-next-line react/display-name
+return function(props){return/*#__PURE__*/React.createElement(IconBase,__assign({attr:__assign({},data.attr)},props),Tree2Element(data.child));};}function IconBase(props){var elem=function(conf){var attr=props.attr,size=props.size,title=props.title,svgProps=__rest(props,["attr","size","title"]);var computedSize=size||conf.size||"1em";var className;if(conf.className)className=conf.className;if(props.className)className=(className?className+" ":"")+props.className;return/*#__PURE__*/React.createElement("svg",__assign({stroke:"currentColor",fill:"currentColor",strokeWidth:"0"},conf.attr,attr,svgProps,{className:className,style:__assign(__assign({color:props.color||conf.color},conf.style),props.style),height:computedSize,width:computedSize,xmlns:"http://www.w3.org/2000/svg"}),title&&/*#__PURE__*/React.createElement("title",null,title),props.children);};return IconContext!==undefined?/*#__PURE__*/React.createElement(IconContext.Consumer,null,function(conf){return elem(conf);}):elem(DefaultContext);}
+
+// THIS FILE IS AUTO GENERATED
+function LuLayoutDashboard(props){return GenIcon({"attr":{"viewBox":"0 0 24 24","fill":"none","stroke":"currentColor","strokeWidth":"2","strokeLinecap":"round","strokeLinejoin":"round"},"child":[{"tag":"rect","attr":{"width":"7","height":"9","x":"3","y":"3","rx":"1"}},{"tag":"rect","attr":{"width":"7","height":"5","x":"14","y":"3","rx":"1"}},{"tag":"rect","attr":{"width":"7","height":"9","x":"14","y":"12","rx":"1"}},{"tag":"rect","attr":{"width":"7","height":"5","x":"3","y":"16","rx":"1"}}]})(props);}function LuListChecks(props){return GenIcon({"attr":{"viewBox":"0 0 24 24","fill":"none","stroke":"currentColor","strokeWidth":"2","strokeLinecap":"round","strokeLinejoin":"round"},"child":[{"tag":"path","attr":{"d":"m3 17 2 2 4-4"}},{"tag":"path","attr":{"d":"m3 7 2 2 4-4"}},{"tag":"path","attr":{"d":"M13 6h8"}},{"tag":"path","attr":{"d":"M13 12h8"}},{"tag":"path","attr":{"d":"M13 18h8"}}]})(props);}function LuMic(props){return GenIcon({"attr":{"viewBox":"0 0 24 24","fill":"none","stroke":"currentColor","strokeWidth":"2","strokeLinecap":"round","strokeLinejoin":"round"},"child":[{"tag":"path","attr":{"d":"M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"}},{"tag":"path","attr":{"d":"M19 10v2a7 7 0 0 1-14 0v-2"}},{"tag":"line","attr":{"x1":"12","x2":"12","y1":"19","y2":"22"}}]})(props);}
+
 /**
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
@@ -2046,11 +2054,6 @@ if(isIeOrEdge()){setTimeout(openFileDialog,0);}else {openFileDialog();}},[noClic
  * @returns {DropzoneState}
  */function reducer(state,action){/* istanbul ignore next */switch(action.type){case "focus":return _objectSpread(_objectSpread({},state),{},{isFocused:true});case "blur":return _objectSpread(_objectSpread({},state),{},{isFocused:false});case "openDialog":return _objectSpread(_objectSpread({},initialState),{},{isFileDialogActive:true});case "closeDialog":return _objectSpread(_objectSpread({},state),{},{isFileDialogActive:false});case "setDraggedFiles":return _objectSpread(_objectSpread({},state),{},{isDragActive:action.isDragActive,isDragAccept:action.isDragAccept,isDragReject:action.isDragReject});case "setFiles":return _objectSpread(_objectSpread({},state),{},{acceptedFiles:action.acceptedFiles,fileRejections:action.fileRejections});case "reset":return _objectSpread({},initialState);default:return state;}}function noop(){}
 
-var DefaultContext={color:undefined,size:undefined,className:undefined,style:undefined,attr:undefined};var IconContext=React.createContext&&/*#__PURE__*/React.createContext(DefaultContext);
-
-var __assign=window&&window.__assign||function(){__assign=Object.assign||function(t){for(var s,i=1,n=arguments.length;i<n;i++){s=arguments[i];for(var p in s)if(Object.prototype.hasOwnProperty.call(s,p))t[p]=s[p];}return t;};return __assign.apply(this,arguments);};var __rest=window&&window.__rest||function(s,e){var t={};for(var p in s)if(Object.prototype.hasOwnProperty.call(s,p)&&e.indexOf(p)<0)t[p]=s[p];if(s!=null&&typeof Object.getOwnPropertySymbols==="function")for(var i=0,p=Object.getOwnPropertySymbols(s);i<p.length;i++){if(e.indexOf(p[i])<0&&Object.prototype.propertyIsEnumerable.call(s,p[i]))t[p[i]]=s[p[i]];}return t;};function Tree2Element(tree){return tree&&tree.map(function(node,i){return/*#__PURE__*/React.createElement(node.tag,__assign({key:i},node.attr),Tree2Element(node.child));});}function GenIcon(data){// eslint-disable-next-line react/display-name
-return function(props){return/*#__PURE__*/React.createElement(IconBase,__assign({attr:__assign({},data.attr)},props),Tree2Element(data.child));};}function IconBase(props){var elem=function(conf){var attr=props.attr,size=props.size,title=props.title,svgProps=__rest(props,["attr","size","title"]);var computedSize=size||conf.size||"1em";var className;if(conf.className)className=conf.className;if(props.className)className=(className?className+" ":"")+props.className;return/*#__PURE__*/React.createElement("svg",__assign({stroke:"currentColor",fill:"currentColor",strokeWidth:"0"},conf.attr,attr,svgProps,{className:className,style:__assign(__assign({color:props.color||conf.color},conf.style),props.style),height:computedSize,width:computedSize,xmlns:"http://www.w3.org/2000/svg"}),title&&/*#__PURE__*/React.createElement("title",null,title),props.children);};return IconContext!==undefined?/*#__PURE__*/React.createElement(IconContext.Consumer,null,function(conf){return elem(conf);}):elem(DefaultContext);}
-
 // THIS FILE IS AUTO GENERATED
 function BiCopy(props){return GenIcon({"attr":{"viewBox":"0 0 24 24"},"child":[{"tag":"path","attr":{"d":"M20 2H10c-1.103 0-2 .897-2 2v4H4c-1.103 0-2 .897-2 2v10c0 1.103.897 2 2 2h10c1.103 0 2-.897 2-2v-4h4c1.103 0 2-.897 2-2V4c0-1.103-.897-2-2-2zM4 20V10h10l.002 10H4zm16-6h-4v-4c0-1.103-.897-2-2-2h-4V4h10v10z"}}]})(props);}function BiCurrentLocation(props){return GenIcon({"attr":{"viewBox":"0 0 24 24"},"child":[{"tag":"circle","attr":{"cx":"12","cy":"12","r":"4"}},{"tag":"path","attr":{"d":"M13 4.069V2h-2v2.069A8.01 8.01 0 0 0 4.069 11H2v2h2.069A8.008 8.008 0 0 0 11 19.931V22h2v-2.069A8.007 8.007 0 0 0 19.931 13H22v-2h-2.069A8.008 8.008 0 0 0 13 4.069zM12 18c-3.309 0-6-2.691-6-6s2.691-6 6-6 6 2.691 6 6-2.691 6-6 6z"}}]})(props);}function BiFile(props){return GenIcon({"attr":{"viewBox":"0 0 24 24"},"child":[{"tag":"path","attr":{"d":"M19.903 8.586a.997.997 0 0 0-.196-.293l-6-6a.997.997 0 0 0-.293-.196c-.03-.014-.062-.022-.094-.033a.991.991 0 0 0-.259-.051C13.04 2.011 13.021 2 13 2H6c-1.103 0-2 .897-2 2v16c0 1.103.897 2 2 2h12c1.103 0 2-.897 2-2V9c0-.021-.011-.04-.013-.062a.952.952 0 0 0-.051-.259c-.01-.032-.019-.063-.033-.093zM16.586 8H14V5.414L16.586 8zM6 20V4h6v5a1 1 0 0 0 1 1h5l.002 10H6z"}},{"tag":"path","attr":{"d":"M8 12h8v2H8zm0 4h8v2H8zm0-8h2v2H8z"}}]})(props);}function BiFolderMinus(props){return GenIcon({"attr":{"viewBox":"0 0 24 24"},"child":[{"tag":"path","attr":{"d":"M20 5h-8.586L9.707 3.293A.996.996 0 0 0 9 3H4c-1.103 0-2 .897-2 2v14c0 1.103.897 2 2 2h16c1.103 0 2-.897 2-2V7c0-1.103-.897-2-2-2zM4 19V7h16l.002 12H4z"}},{"tag":"path","attr":{"d":"M7.874 12h8v2h-8z"}}]})(props);}function BiFolderPlus(props){return GenIcon({"attr":{"viewBox":"0 0 24 24"},"child":[{"tag":"path","attr":{"d":"M13 9h-2v3H8v2h3v3h2v-3h3v-2h-3z"}},{"tag":"path","attr":{"d":"M20 5h-8.586L9.707 3.293A.996.996 0 0 0 9 3H4c-1.103 0-2 .897-2 2v14c0 1.103.897 2 2 2h16c1.103 0 2-.897 2-2V7c0-1.103-.897-2-2-2zM4 19V7h16l.002 12H4z"}}]})(props);}function BiFolder(props){return GenIcon({"attr":{"viewBox":"0 0 24 24"},"child":[{"tag":"path","attr":{"d":"M20 5h-8.586L9.707 3.293A.997.997 0 0 0 9 3H4c-1.103 0-2 .897-2 2v14c0 1.103.897 2 2 2h16c1.103 0 2-.897 2-2V7c0-1.103-.897-2-2-2zM4 19V7h16l.002 12H4z"}}]})(props);}
 
@@ -2074,9 +2077,6 @@ function IoIosAddCircle(props){return GenIcon({"attr":{"viewBox":"0 0 512 512"},
 
 // THIS FILE IS AUTO GENERATED
 function MdLocationOn(props){return GenIcon({"attr":{"viewBox":"0 0 24 24"},"child":[{"tag":"path","attr":{"fill":"none","d":"M0 0h24v24H0z"}},{"tag":"path","attr":{"d":"M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 010-5 2.5 2.5 0 010 5z"}}]})(props);}function MdContentCopy(props){return GenIcon({"attr":{"viewBox":"0 0 24 24"},"child":[{"tag":"path","attr":{"fill":"none","d":"M0 0h24v24H0z"}},{"tag":"path","attr":{"d":"M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"}}]})(props);}function MdFormatListBulleted(props){return GenIcon({"attr":{"viewBox":"0 0 24 24"},"child":[{"tag":"path","attr":{"fill":"none","d":"M0 0h24v24H0V0z"}},{"tag":"path","attr":{"d":"M4 10.5c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zm0-6c-.83 0-1.5.67-1.5 1.5S3.17 7.5 4 7.5 5.5 6.83 5.5 6 4.83 4.5 4 4.5zm0 12c-.83 0-1.5.68-1.5 1.5s.68 1.5 1.5 1.5 1.5-.68 1.5-1.5-.67-1.5-1.5-1.5zM7 19h14v-2H7v2zm0-6h14v-2H7v2zm0-8v2h14V5H7z"}}]})(props);}function MdTitle(props){return GenIcon({"attr":{"viewBox":"0 0 24 24"},"child":[{"tag":"path","attr":{"fill":"none","d":"M0 0h24v24H0V0z"}},{"tag":"path","attr":{"d":"M5 4v3h5.5v12h3V7H19V4z"}}]})(props);}function MdEventNote(props){return GenIcon({"attr":{"viewBox":"0 0 24 24"},"child":[{"tag":"path","attr":{"fill":"none","d":"M0 0h24v24H0z"}},{"tag":"path","attr":{"d":"M17 10H7v2h10v-2zm2-7h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19a2 2 0 002 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zm-5-5H7v2h7v-2z"}}]})(props);}function MdOutlineCreateNewFolder(props){return GenIcon({"attr":{"viewBox":"0 0 24 24"},"child":[{"tag":"path","attr":{"fill":"none","d":"M0 0h24v24H0V0z"}},{"tag":"path","attr":{"d":"M20 6h-8l-2-2H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm0 12H4V6h5.17l2 2H20v10zm-8-4h2v2h2v-2h2v-2h-2v-2h-2v2h-2z"}}]})(props);}
-
-// THIS FILE IS AUTO GENERATED
-function LuLayoutDashboard(props){return GenIcon({"attr":{"viewBox":"0 0 24 24","fill":"none","stroke":"currentColor","strokeWidth":"2","strokeLinecap":"round","strokeLinejoin":"round"},"child":[{"tag":"rect","attr":{"width":"7","height":"9","x":"3","y":"3","rx":"1"}},{"tag":"rect","attr":{"width":"7","height":"5","x":"14","y":"3","rx":"1"}},{"tag":"rect","attr":{"width":"7","height":"9","x":"14","y":"12","rx":"1"}},{"tag":"rect","attr":{"width":"7","height":"5","x":"3","y":"16","rx":"1"}}]})(props);}function LuListChecks(props){return GenIcon({"attr":{"viewBox":"0 0 24 24","fill":"none","stroke":"currentColor","strokeWidth":"2","strokeLinecap":"round","strokeLinejoin":"round"},"child":[{"tag":"path","attr":{"d":"m3 17 2 2 4-4"}},{"tag":"path","attr":{"d":"m3 7 2 2 4-4"}},{"tag":"path","attr":{"d":"M13 6h8"}},{"tag":"path","attr":{"d":"M13 12h8"}},{"tag":"path","attr":{"d":"M13 18h8"}}]})(props);}function LuMic(props){return GenIcon({"attr":{"viewBox":"0 0 24 24","fill":"none","stroke":"currentColor","strokeWidth":"2","strokeLinecap":"round","strokeLinejoin":"round"},"child":[{"tag":"path","attr":{"d":"M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"}},{"tag":"path","attr":{"d":"M19 10v2a7 7 0 0 1-14 0v-2"}},{"tag":"line","attr":{"x1":"12","x2":"12","y1":"19","y2":"22"}}]})(props);}
 
 const SunriseIcon = (_a) => {
     var { size = 20 } = _a, props = __rest$1(_a, ["size"]);
@@ -5095,6 +5095,8 @@ function AdaptiveNavigator({ plugin, fileTreeView }) {
                 React.createElement(FaHistory, null)),
             React.createElement("button", { "data-ignore-swipe": "true", "aria-label": "Bookmarks", title: "Bookmarks", "aria-pressed": view$1 === 'bookmarks', onClick: () => { setShortcuts(false); setView('bookmarks'); } },
                 React.createElement(FaRegBookmark, null)),
+            React.createElement("button", { "data-ignore-swipe": "true", "aria-label": "Talk to Vault", title: "Talk to Vault", onClick: () => { var _a; return plugin.openVaultVoice({ folder: path, note: ((_a = plugin.app.workspace.getActiveFile()) === null || _a === void 0 ? void 0 : _a.path) || '' }); } },
+                React.createElement(LuMic, { "aria-hidden": "true" })),
             React.createElement("button", { "data-ignore-swipe": "true", "aria-label": "All File Focus buttons", title: "All File Focus buttons", onClick: allButtons, onContextMenu: e => { e.preventDefault(); overflow(e); } }, "\u22EF")));
     const resize = (e) => {
         if (!host.current)
@@ -6022,7 +6024,7 @@ class FileTreeAlternativePluginSettingsTab extends obsidian.PluginSettingTab {
             this.refreshView();
         } })));
         new obsidian.Setting(containerEl).setName('Use legacy desktop layout').setDesc('Desktop only. Restore the Evernote layout setting below. Mobile always uses the adaptive navigator.').addToggle(toggle => toggle.setValue(this.plugin.settings.duoDesktopLegacyLayout).onChange((value) => __awaiter(this, void 0, void 0, function* () { this.plugin.settings.duoDesktopLegacyLayout = value; yield this.plugin.saveSettings(); this.refreshView(); })));
-        new obsidian.Setting(containerEl).setName('Vault voice API key').setDesc('Optional. Stored in plain text in this plugin’s data.json. Leave empty to use the existing device key without copying it here.')
+        new obsidian.Setting(containerEl).setName('Vault voice API key').setDesc('Optional. Stored in plain text in this plugin’s data.json. Leave empty to choose the saved Objective Manager key for each conversation, without copying it into Duo.')
             .addText((text) => {
             text.inputEl.type = 'password';
             text.setValue(this.plugin.settings.liveApiKey).onChange((value) => __awaiter(this, void 0, void 0, function* () {
@@ -6468,6 +6470,22 @@ class LiveToolLoop {
     }
 }
 
+/** Only return fixed, actionable messages: provider messages may echo private input. */
+function voiceFailure(status, error) {
+    const code = typeof (error === null || error === void 0 ? void 0 : error.code) === 'string' ? error.code : error === null || error === void 0 ? void 0 : error.type;
+    if (status === 401 || code === 'invalid_api_key')
+        return 'OpenAI rejected the API key. Update the key in File Focus Duo or Objective Manager settings.';
+    if (code === 'insufficient_quota')
+        return 'OpenAI API quota is exhausted. Check billing and project limits.';
+    if (status === 429 || code === 'rate_limit_exceeded')
+        return 'OpenAI rate or quota limit reached. Check project limits or try again later.';
+    if ([403, 404].includes(status || 0) || ['model_not_found', 'model_not_available', 'permission_denied'].includes(String(code)))
+        return 'Check that the key’s OpenAI project can use GPT-Live-1 and the configured Vault voice backend model.';
+    if (status === 400 || code === 'invalid_request_error')
+        return 'OpenAI rejected the voice configuration. Check the Vault voice backend model in File Focus Duo settings and update the plugin if needed.';
+    return 'OpenAI could not complete the voice connection. Check the network and project status, then try again.';
+}
+
 const string = { type: 'string' };
 const offset = { type: 'integer', minimum: 0 };
 function tool(name, description, properties) {
@@ -6739,14 +6757,14 @@ class VaultLiveSession {
     }
     get active() { return this.ready && !this.disposed && !this.ending; }
     start(apiKey, backendModel, context) {
-        var _a, _b, _c, _d;
+        var _a, _b, _c, _d, _e;
         return __awaiter(this, void 0, void 0, function* () {
             if (this.disposed)
                 return;
             this.callbacks.state("connecting", "Connecting… Please wait before speaking.");
             try {
                 if (!apiKey.trim())
-                    throw new Error("Add your OpenAI API key in FJG File Focus Duo settings.");
+                    throw new Error("No saved voice key was found. Add a key in File Focus Duo settings or save one in Objective Manager before starting.");
                 if (!((_a = navigator.mediaDevices) === null || _a === void 0 ? void 0 : _a.getUserMedia) || typeof RTCPeerConnection === "undefined")
                     throw new Error("Live voice is not supported on this device.");
                 const peer = this.peer = new RTCPeerConnection();
@@ -6800,12 +6818,21 @@ class VaultLiveSession {
                 if (this.disposed)
                     return;
                 if (response.status >= 400) {
-                    const hint = response.status === 401 ? "Check your saved OpenAI API key." : response.status === 403 || response.status === 404 ? "Check that your OpenAI project has GPT-Live-1 and backend model access." : response.status === 429 ? "Check your OpenAI quota or try again later." : "Try again after checking your OpenAI account and network.";
-                    throw new Error(`Voice connection failed (HTTP ${response.status}). ${hint}`);
+                    let error;
+                    try {
+                        error = (_c = response.json) === null || _c === void 0 ? void 0 : _c.error;
+                    }
+                    catch ( /* Non-JSON failures still report status safely. */_f) { /* Non-JSON failures still report status safely. */ }
+                    throw new Error(`Voice connection failed (HTTP ${response.status}). ${voiceFailure(response.status, error)}`);
                 }
-                if (typeof ((_d = (_c = response.json) === null || _c === void 0 ? void 0 : _c.transport) === null || _d === void 0 ? void 0 : _d.sdp) !== "string")
-                    throw new Error("OpenAI did not return a voice connection answer.");
-                yield peer.setRemoteDescription({ type: "answer", sdp: response.json.transport.sdp });
+                let answer;
+                try {
+                    answer = (_e = (_d = response.json) === null || _d === void 0 ? void 0 : _d.transport) === null || _e === void 0 ? void 0 : _e.sdp;
+                }
+                catch ( /* Do not expose a provider response body. */_g) { /* Do not expose a provider response body. */ }
+                if (typeof answer !== "string" || !answer.trim())
+                    throw new Error("OpenAI did not return a voice connection answer. Update the plugin and check API model access.");
+                yield peer.setRemoteDescription({ type: "answer", sdp: answer });
                 // POST starts the session. Wait for session.started; never send session.start.
             }
             catch (error) {
@@ -6861,6 +6888,7 @@ class VaultLiveSession {
         this.ready = false;
     }
     onEvent(event) {
+        var _a, _b;
         if (this.disposed)
             return;
         if (event.type === "session.started") {
@@ -6875,10 +6903,13 @@ class VaultLiveSession {
             this.callbacks.state("ended", "Conversation ended.");
         }
         else if (event.type === "error") {
-            this.fail("OpenAI reported a voice session error. Ended the connection; saved changes remain saved.");
+            this.fail(`${voiceFailure(undefined, event.error)} Ended the connection; saved changes remain saved.`);
         }
         else if (["session.input_transcript.delta", "session.output_transcript.delta"].includes(event.type) && typeof event.delta === "string") {
             this.callbacks.transcript(event.type === "session.input_transcript.delta" ? "You" : "Assistant", event.delta);
+        }
+        else if (event.type === "response.event" && ((_a = event.event) === null || _a === void 0 ? void 0 : _a.type) === "response.failed") {
+            this.fail(`The vault assistant failed. ${voiceFailure(undefined, (_b = event.event.response) === null || _b === void 0 ? void 0 : _b.error)} Saved changes remain saved.`);
         }
         else if (event.type === "response.event" && this.active) {
             void this.loop.handle(event).catch(() => this.fail("Could not finish a voice note request. Check the dashboard before trying the change again."));
@@ -7040,15 +7071,16 @@ class VaultVoiceModal extends obsidian.Modal {
         this.release = release;
     }
     onOpen() {
+        var _a;
         this.titleEl.setText('Talk to your vault');
         this.modalEl.addClass('fjgduo-vault-live-modal');
         const root = this.contentEl;
         root.createEl('p', { cls: 'fjgduo-vault-live-intro', text: 'Ask about your notes, capture a thought, or say what to update. Clear edits save immediately.' });
-        root.createEl('p', { cls: 'fjgduo-vault-live-caption', text: 'Microphone audio and relevant note excerpts go to OpenAI while connected. Uses your saved API key.' });
-        this.status = root.createEl('p', { cls: 'fjgduo-vault-live-status', text: 'Microphone off — press Start conversation', attr: { role: 'status', 'aria-live': 'polite' } });
+        root.createEl('p', { cls: 'fjgduo-vault-live-caption', text: 'Starting sends microphone audio, the vault name, selected paths and relevant note excerpts to OpenAI. API charges may apply. ' + (((_a = this.plugin.settings.liveApiKey) === null || _a === void 0 ? void 0 : _a.trim()) ? 'Uses the key saved in File Focus Duo.' : 'Uses the key saved in Objective Manager for this conversation without copying or saving it in Duo.') });
+        this.status = root.createEl('p', { cls: 'fjgduo-vault-live-status', text: 'Microphone off — review the details before starting', attr: { role: 'status', 'aria-live': 'polite' } });
         this.coverage = root.createEl('p', { cls: 'fjgduo-vault-live-coverage', attr: { role: 'status' } });
         const controls = root.createDiv({ cls: 'fjgduo-vault-live-controls' });
-        this.startButton = controls.createEl('button', { text: 'Start conversation', cls: 'mod-cta' });
+        this.startButton = controls.createEl('button', { text: this.startLabel(), cls: 'mod-cta' });
         this.startButton.addEventListener('click', () => void this.start());
         this.muteButton = controls.createEl('button', { text: 'Mute microphone', attr: { 'aria-pressed': 'false' } });
         this.muteButton.disabled = true;
@@ -7070,6 +7102,10 @@ class VaultVoiceModal extends obsidian.Modal {
         this.transcript.createEl('p', { cls: 'fjgduo-vault-live-caption', text: 'Try: “Find my notes about summer planning” or “Add this thought to my meeting note.”' });
         this.sources = root.createDiv({ cls: 'fjgduo-vault-live-sources', attr: { 'aria-label': 'Source notes' } });
         this.saved = root.createDiv({ cls: 'fjgduo-vault-live-saved', attr: { role: 'log', 'aria-label': 'Saved changes', 'aria-live': 'polite' } });
+    }
+    startLabel() {
+        var _a;
+        return ((_a = this.plugin.settings.liveApiKey) === null || _a === void 0 ? void 0 : _a.trim()) ? 'Agree and start conversation' : 'Use Objective Manager key and start';
     }
     file(path) {
         const file = this.app.vault.getAbstractFileByPath(path);
@@ -7140,7 +7176,7 @@ class VaultVoiceModal extends obsidian.Modal {
             }
             catch (_c) {
                 session.dispose();
-                this.setState('error', 'Could not load the saved OpenAI key. Check File Focus voice settings.');
+                this.setState('error', 'Could not read the saved key. Check the Vault voice API key in File Focus Duo settings; no connection was made.');
             }
         });
     }
@@ -7151,7 +7187,7 @@ class VaultVoiceModal extends obsidian.Modal {
             return;
         this.status.setText(message);
         this.status.dataset.state = state;
-        this.startButton.setText(state === "connecting" ? "Connecting…" : state === "connected" ? "Conversation active" : "Start conversation");
+        this.startButton.setText(state === "connecting" ? "Connecting…" : state === "connected" ? "Conversation active" : this.startLabel());
         this.status.setAttribute("aria-busy", String(state === "connecting"));
         this.startButton.disabled = ['connecting', 'connected', 'ending'].includes(state);
         this.muteButton.disabled = state !== 'connected';
@@ -7767,18 +7803,17 @@ class FileTreeAlternativePlugin extends obsidian.Plugin {
         this.vaultVoiceModal.open();
     }
     resolveVoiceApiKey() {
-        var _a, _b, _c;
+        var _a;
         return __awaiter(this, void 0, void 0, function* () {
             if ((_a = this.settings.liveApiKey) === null || _a === void 0 ? void 0 : _a.trim())
                 return this.settings.liveApiKey.trim();
-            const tasks = (_c = (_b = this.app.plugins) === null || _b === void 0 ? void 0 : _b.plugins) === null || _c === void 0 ? void 0 : _c['fjg-task-manager'];
-            if (typeof (tasks === null || tasks === void 0 ? void 0 : tasks.resolveOpenAiApiKey) === 'function')
-                return yield tasks.resolveOpenAiApiKey();
+            // Called only after the user chooses the session's explicit shared-key Start button.
+            // Read the saved value without invoking Objective Manager's recovery/persistence logic.
             try {
                 const saved = JSON.parse(yield this.app.vault.adapter.read(`${this.app.vault.configDir}/plugins/fjg-task-manager/data.json`));
                 return typeof saved.openAiApiKey === 'string' ? saved.openAiApiKey.trim() : '';
             }
-            catch (_d) {
+            catch (_b) {
                 return '';
             }
         });

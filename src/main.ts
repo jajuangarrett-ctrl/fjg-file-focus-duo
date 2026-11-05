@@ -294,8 +294,8 @@ export default class FileTreeAlternativePlugin extends Plugin {
 
     async resolveVoiceApiKey(): Promise<string> {
         if (this.settings.liveApiKey?.trim()) return this.settings.liveApiKey.trim();
-        const tasks = (this.app as any).plugins?.plugins?.['fjg-task-manager'];
-        if (typeof tasks?.resolveOpenAiApiKey === 'function') return await tasks.resolveOpenAiApiKey();
+        // Called only after the user chooses the session's explicit shared-key Start button.
+        // Read the saved value without invoking Objective Manager's recovery/persistence logic.
         try {
             const saved = JSON.parse(await this.app.vault.adapter.read(`${this.app.vault.configDir}/plugins/fjg-task-manager/data.json`));
             return typeof saved.openAiApiKey === 'string' ? saved.openAiApiKey.trim() : '';

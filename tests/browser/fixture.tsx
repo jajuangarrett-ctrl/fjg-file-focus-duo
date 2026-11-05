@@ -26,7 +26,7 @@ const app:any={
  internalPlugins:{plugins:{},getEnabledPluginById:(id:string)=>id==='bookmarks'?{items:[{type:'group',title:'Group',items:[{type:'file',path:'Projects/Note 0000.md'}]},{type:'file',path:'Projects/Note 0001.md'}]}:null},
  commands:{commands:{},executeCommandById:()=>false},plugins:{getPlugin:()=>null},
 };
-const plugin:any={app,manifest:{id:'fjg-file-focus-duo'},settings:{...DEFAULT_SETTINGS,folderNote:false,excludedExtensions:'.PY, pyc'},keys:{activeFolderPathKey:'fixture-active',focusedFolder:'fixture-focus',pinnedFilesKey:'fixture-pins',openFoldersKey:'fixture-open'},VIEW_TYPE:'fjg-file-focus-duo-view',saveSettings:async()=>{},shouldBuildFolderTreeRecursively:()=>true,isMobilePerformanceModeEnabled:()=>false,shouldFollowActiveFile:()=>false,openFileTreeLeaf:async()=>{},registerFolderRevealListener:(fn:Function)=>{listeners.add(fn);return()=>listeners.delete(fn);},openInboxMorningBrief:()=>{},openVaultVoice:()=>{}};
+const plugin:any={app,manifest:{id:'fjg-file-focus-duo'},settings:{...DEFAULT_SETTINGS,folderNote:false,excludedExtensions:'.PY, pyc'},keys:{activeFolderPathKey:'fixture-active',focusedFolder:'fixture-focus',pinnedFilesKey:'fixture-pins',openFoldersKey:'fixture-open'},VIEW_TYPE:'fjg-file-focus-duo-view',saveSettings:async()=>{},shouldBuildFolderTreeRecursively:()=>true,isMobilePerformanceModeEnabled:()=>false,shouldFollowActiveFile:()=>false,openFileTreeLeaf:async()=>{},registerFolderRevealListener:(fn:Function)=>{listeners.add(fn);return()=>listeners.delete(fn);},openInboxMorningBrief:()=>{},openVaultVoice:(selection:any)=>{(window as any).voiceSelection=selection;}};
 (window as any).fixture={plugin,app,root,projects,child,refresh:()=>window.dispatchEvent(new Event(eventTypes.refreshView)),reveal:(path:string)=>window.dispatchEvent(new CustomEvent(eventTypes.revealFile,{detail:{file:map.get(path)}})),setSetting:(key:string,value:any)=>{plugin.settings[key]=value;window.dispatchEvent(new Event(eventTypes.refreshView));}};
 createRoot(document.getElementById('mount')!).render(<RecoilRoot><MainTreeComponent plugin={plugin} fileTreeView={{containerEl:document.getElementById('mount')} as any}/></RecoilRoot>);
 
@@ -38,4 +38,13 @@ createRoot(document.getElementById('mount')!).render(<RecoilRoot><MainTreeCompon
     const changed=await FileTreePlugin.prototype.importOriginalVisibilitySettings.call(context);
     const unchanged=await FileTreePlugin.prototype.importOriginalVisibilitySettings.call(context);
     return {changed,secondImportSkipped:!unchanged,extensions:context.settings.excludedExtensions,folders:context.settings.excludedFolders,onlySupported:context.settings.showOnlySupportedFileTypes,originalUnchanged:JSON.stringify(original)===snapshot,ownCredentialPreserved:context.settings.liveApiKey==='fixture-only-duo-key'};
+};
+
+(window as any).testVoiceKeyResolution=async()=>{
+ let reads=0,recoveries=0,saves=0;
+ const context:any={settings:{liveApiKey:''},app:{vault:{configDir:'.fixture',adapter:{read:async()=>{reads++;return JSON.stringify({openAiApiKey:'fixture-shared'});}}},plugins:{plugins:{'fjg-task-manager':{resolveOpenAiApiKey:async()=>{recoveries++;throw Error('Must not invoke persistent recovery');}}}}},saveSettings:async()=>{saves++;}};
+ const shared=await FileTreePlugin.prototype.resolveVoiceApiKey.call(context);
+ context.settings.liveApiKey='fixture-own';
+ const own=await FileTreePlugin.prototype.resolveVoiceApiKey.call(context);
+ return {shared:shared==='fixture-shared',own:own==='fixture-own',reads,recoveries,saves};
 };
