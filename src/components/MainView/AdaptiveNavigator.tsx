@@ -137,7 +137,7 @@ export function AdaptiveNavigator({plugin}: {plugin: FileTreeAlternativePlugin})
         requestAnimationFrame(()=>refreshShortcuts(value=>value+1));
     };
     const toolbar = <div className={`duo-toolbar${plugin.settings.fixedHeaderInFileList ? ' duo-toolbar-fixed' : ''}`} role="toolbar" aria-label="File Focus Duo">
-        <button className="duo-back" aria-label={`Back from ${path || 'vault root'}. Hold to jump to root.`} title={path || 'Vault root'} onClick={goBack} onContextMenu={e => {e.preventDefault();navigate(plugin.app.vault.getRoot());}} {...backPress}><Icons.FaArrowCircleLeft/><span>{focusMode ? view : (path?.split('/').pop() || plugin.app.vault.getName())}</span></button>
+        <button className="duo-back" data-ignore-swipe="true" aria-label={`Back from ${path || 'vault root'}. Hold to jump to root.`} title={path || 'Vault root'} onClick={goBack} onContextMenu={e => {e.preventDefault();navigate(plugin.app.vault.getRoot());}} {...backPress}><Icons.FaArrowCircleLeft/><span>{focusMode ? view : (path?.split('/').pop() || plugin.app.vault.getName())}</span></button>
         <button aria-label="Search" title="Search" onClick={e => { setShortcuts(false); if(focusMode) window.dispatchEvent(new Event(FOCUS_SEARCH)); else { if(atRoot) setRootFilesVisible(true); fileAction('search',e); } }}><Icons.IoIosSearch/></button>
         <button aria-label="New note" title="New note" onClick={e => fileAction('new-note',e)}><Icons.IoIosAddCircle/></button>
         <button aria-label="Recent" title="Recent" aria-pressed={view==='recent'} onClick={() => {setShortcuts(false);setView('recent');}}><Icons.FaHistory/></button>

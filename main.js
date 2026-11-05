@@ -5010,7 +5010,7 @@ function AdaptiveNavigator({ plugin }) {
         requestAnimationFrame(() => refreshShortcuts(value => value + 1));
     };
     const toolbar = React.createElement("div", { className: `duo-toolbar${plugin.settings.fixedHeaderInFileList ? ' duo-toolbar-fixed' : ''}`, role: "toolbar", "aria-label": "File Focus Duo" },
-        React.createElement("button", Object.assign({ className: "duo-back", "aria-label": `Back from ${path || 'vault root'}. Hold to jump to root.`, title: path || 'Vault root', onClick: goBack, onContextMenu: e => { e.preventDefault(); navigate(plugin.app.vault.getRoot()); } }, backPress),
+        React.createElement("button", Object.assign({ className: "duo-back", "data-ignore-swipe": "true", "aria-label": `Back from ${path || 'vault root'}. Hold to jump to root.`, title: path || 'Vault root', onClick: goBack, onContextMenu: e => { e.preventDefault(); navigate(plugin.app.vault.getRoot()); } }, backPress),
             React.createElement(FaArrowCircleLeft, null),
             React.createElement("span", null, focusMode ? view$1 : ((path === null || path === void 0 ? void 0 : path.split('/').pop()) || plugin.app.vault.getName()))),
         React.createElement("button", { "aria-label": "Search", title: "Search", onClick: e => { setShortcuts(false); if (focusMode)
