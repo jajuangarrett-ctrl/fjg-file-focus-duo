@@ -164,12 +164,13 @@ export default function Tree(props: TreeProps) {
                             <input {...getInputProps()} />
 
                             <div className="fjgduo-folder-line">
-                                <div className="fjgduo-icon-div" role="button" tabIndex={0} aria-label={`Expand or collapse ${props.folder.name}`} aria-expanded={open} onClick={Platform.isMobile ? toggle : undefined} onKeyDown={e=>{if(e.key === 'Enter'||e.key === ' '){e.preventDefault();toggle();}}}>
+                                <div className="fjgduo-icon-div" data-ignore-swipe="true" role="button" tabIndex={0} aria-label={`Expand or collapse ${props.folder.name}`} aria-expanded={open} onClick={Platform.isMobile ? toggle : undefined} onKeyDown={e=>{if(e.key === 'Enter'||e.key === ' '){e.preventDefault();toggle();}}}>
                                     <Icon className="fjgduo-folder-toggle" style={{ opacity: props.children ? 1 : 0.3 }} onClick={Platform.isMobile ? undefined : toggle} />
                                 </div>
 
                                 <div
                                     className="fjgduo-folder-block"
+                                    data-ignore-swipe="true"
                                     role="button" tabIndex={0} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();props.onClick();}}}
                                     onClick={folderNameClickEvent}
                                     onDoubleClick={folderNameDoubleClickEvent}

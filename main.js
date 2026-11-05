@@ -3006,12 +3006,12 @@ function Tree(props) {
                     (isFolderActive ? ' is-folder-active' : ''), "data-path": props.folder.path }),
                 React.createElement("input", Object.assign({}, getInputProps())),
                 React.createElement("div", { className: "fjgduo-folder-line" },
-                    React.createElement("div", { className: "fjgduo-icon-div", role: "button", tabIndex: 0, "aria-label": `Expand or collapse ${props.folder.name}`, "aria-expanded": open, onClick: obsidian.Platform.isMobile ? toggle : undefined, onKeyDown: e => { if (e.key === 'Enter' || e.key === ' ') {
+                    React.createElement("div", { className: "fjgduo-icon-div", "data-ignore-swipe": "true", role: "button", tabIndex: 0, "aria-label": `Expand or collapse ${props.folder.name}`, "aria-expanded": open, onClick: obsidian.Platform.isMobile ? toggle : undefined, onKeyDown: e => { if (e.key === 'Enter' || e.key === ' ') {
                             e.preventDefault();
                             toggle();
                         } } },
                         React.createElement(Icon, { className: "fjgduo-folder-toggle", style: { opacity: props.children ? 1 : 0.3 }, onClick: obsidian.Platform.isMobile ? undefined : toggle })),
-                    React.createElement("div", Object.assign({ className: "fjgduo-folder-block", role: "button", tabIndex: 0, onKeyDown: e => { if (e.key === 'Enter' || e.key === ' ') {
+                    React.createElement("div", Object.assign({ className: "fjgduo-folder-block", "data-ignore-swipe": "true", role: "button", tabIndex: 0, onKeyDown: e => { if (e.key === 'Enter' || e.key === ' ') {
                             e.preventDefault();
                             props.onClick();
                         } }, onClick: folderNameClickEvent, onDoubleClick: folderNameDoubleClickEvent, onContextMenu: folderContextMenuEvent }, longPressEvents),
