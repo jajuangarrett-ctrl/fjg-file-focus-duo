@@ -1549,6 +1549,8 @@ const focusedFolder = Recoil_index_8({
     default: null,
     dangerouslyAllowMutability: true,
 });
+/** Explicit top-folder focus, separate from normal mobile drill-down. */
+const topFolderFocus = Recoil_index_8({ key: "fjgduo-topFolderFocus", default: false });
 
 function menuPosition(event) {
     var _a, _b;
@@ -2443,7 +2445,7 @@ class VaultChangeModal extends obsidian.Modal {
         headerEl.addClass('modal-title');
         // Input El
         const inputEl = contentEl.createEl('input');
-        inputEl.style.cssText = 'width: 100%; height: 2.5em; margin-bottom: 15px;';
+        inputEl.addClass('fjgduo-modal-input');
         if (this.action === 'rename') {
             // Manual Rename Handler For md Files
             if (this.file.path.endsWith('.md')) {
@@ -3040,6 +3042,7 @@ function NestedFolders(props) {
     const [activeFolderPath$1, setActiveFolderPath] = Recoil_index_22(activeFolderPath);
     const [excludedFolders$1, setExcludedFolders] = Recoil_index_22(excludedFolders);
     const [focusedFolder$1, setFocusedFolder] = Recoil_index_22(focusedFolder);
+    const [, setTopFolderFocus] = Recoil_index_22(topFolderFocus);
     const [folderFileCountMap$1] = Recoil_index_22(folderFileCountMap);
     const [_view, setView] = Recoil_index_22(view);
     const handleFolderNameClick = (folderPath) => {
@@ -3047,6 +3050,7 @@ function NestedFolders(props) {
         window.dispatchEvent(new CustomEvent(FOLDER_SELECTED, { detail: app.vault.getAbstractFileByPath(folderPath) }));
     };
     const focusOnFolder = (folder) => {
+        setTopFolderFocus(!folder.isRoot());
         setFocusedFolder(folder);
         setActiveFolderPath(folder.path);
     };
@@ -3243,7 +3247,6 @@ function useForceUpdate() {
     return () => setValue((value) => value + 1);
 }
 
-const FOLDER_NAVIGATOR_COMMAND_ID = 'fjg-note-navigator-toolbar:open-folder-navigator';
 const OMNISEARCH_COMMAND_ID = 'omnisearch:show-modal';
 const VAULT_CONTROL_CENTER_COMMAND_ID = 'vault-control-center:open-vault-control-center';
 const FJG_TASK_MANAGER_COMMAND_ID = 'fjg-task-manager:open-dashboard';
@@ -3262,6 +3265,7 @@ function MainFolder(props) {
     const [view$1, setView] = Recoil_index_22(view);
     const [folderTree$1] = Recoil_index_22(folderTree);
     const [focusedFolder$1, setFocusedFolder] = Recoil_index_22(focusedFolder);
+    const [, setTopFolderFocus] = Recoil_index_22(topFolderFocus);
     const [_openFolders, setOpenFolders] = Recoil_index_22(openFolders);
     const [activeOzFile] = Recoil_index_22(activeOZFile);
     const [followActiveFile, setFollowActiveFile] = React.useState(plugin.settings.followActiveFile);
@@ -3275,6 +3279,7 @@ function MainFolder(props) {
     // Force Update
     const forceUpdate = useForceUpdate();
     const focusOnFolder = (folder) => {
+        setTopFolderFocus(!folder.isRoot());
         setFocusedFolder(folder);
         setActiveFolderPath(folder.path);
     };
@@ -3433,15 +3438,6 @@ function MainFolder(props) {
         sortMenu.showAtPosition(menuPosition(e));
         return false;
     };
-    const openFolderNavigator = () => {
-        var _a;
-        const commands = app.commands;
-        if (!((_a = commands === null || commands === void 0 ? void 0 : commands.commands) === null || _a === void 0 ? void 0 : _a[FOLDER_NAVIGATOR_COMMAND_ID]) || !(commands === null || commands === void 0 ? void 0 : commands.executeCommandById)) {
-            new obsidian.Notice('Enable or update FJG Note Navigator Toolbar to open Folder Navigator.');
-            return;
-        }
-        commands.executeCommandById(FOLDER_NAVIGATOR_COMMAND_ID);
-    };
     const openOmnisearch = () => {
         var _a;
         const commands = plugin.app.commands;
@@ -3482,7 +3478,6 @@ function MainFolder(props) {
             { id: 'dashboard', title: 'Open selected folder dashboard', run: openUniversalDashboard },
             { id: 'new-folder', title: 'New Folder', run: createFolderInCurrentFolder },
             { id: 'folder-tags', title: 'Review Selected Folder Tags with AI', run: reviewSelectedFolderTags },
-            { id: 'folder-navigator', title: 'Open Folder Navigator', run: openFolderNavigator },
             { id: 'omnisearch', title: 'Open Omnisearch', run: openOmnisearch },
             { id: 'follow', title: `Follow active note: ${followActiveFile ? 'on' : 'off'}`, run: () => obsidian.Platform.isMobile ? new obsidian.Notice('Follow active note is desktop-only. Use Reveal Active File from the command palette.') : toggleFollowActiveFile() },
             { id: 'folder-sort', title: 'Folder sorting options', run: triggerFolderSortOptions },
@@ -3979,11 +3974,12 @@ function VirtualFiles({ files, render, layoutKey }) {
             frame = requestAnimationFrame(() => {
                 second = requestAnimationFrame(() => {
                     third = requestAnimationFrame(() => {
+                        var _a;
                         const list = element.current, scroll = list === null || list === void 0 ? void 0 : list.closest('.duo-pane');
                         if (!list || !scroll || !list.getClientRects().length)
                             return;
                         const offset = list.getBoundingClientRect().top - scroll.getBoundingClientRect().top + scroll.scrollTop;
-                        const pinned = scroll.classList.contains('duo-main-scroll') && Boolean(scroll.querySelector('.duo-toolbar-fixed')) ? 44 : 0;
+                        const pinned = scroll.classList.contains('duo-main-scroll') && Boolean(scroll.querySelector('.duo-toolbar-fixed')) ? (((_a = scroll.querySelector('.duo-toolbar-fixed')) === null || _a === void 0 ? void 0 : _a.getBoundingClientRect().height) || 0) : 0;
                         scroll.scrollTop = offset + index * FILE_ROW_HEIGHT - pinned;
                     });
                 });
@@ -4734,6 +4730,21 @@ function showFocusContextMenu(plugin, item, event) {
     menu.showAtPosition(menuPosition(event));
 }
 
+/** Pure navigation decisions: never infer the parent from a selected sibling or stale tree focus. */
+function backAction(input) {
+    if (input.focusMode)
+        return 'exit-mode';
+    if (input.topFocus)
+        return 'clear-focus';
+    if (input.path && input.path !== '/' && input.parent !== undefined)
+        return 'parent';
+    return 'close';
+}
+function breadcrumbLabel(vault, path) {
+    const parts = path.split('/').filter(Boolean);
+    return { first: vault, last: parts[parts.length - 1] || '', collapsed: parts.length > 1 };
+}
+
 const icons = {
     back: 'arrow-left', folders: 'folder-open', root: 'home', 'root-files': 'files', recent: 'history', bookmarks: 'bookmark',
     home: 'house', brief: 'sunrise', tasks: 'list-checks', agenda: 'calendar', voice: 'mic', dashboard: 'layout-dashboard',
@@ -4780,6 +4791,7 @@ function renderActionButtons(container, sections, run) {
         const buttons = [];
         for (const action of actions.filter(a => a.visible !== false)) {
             const button = document.createElement('button');
+            button.dataset.ignoreSwipe = 'true';
             button.type = 'button';
             button.dataset.actionId = action.id;
             const icon = document.createElement('span');
@@ -4844,10 +4856,12 @@ function ShortcutPanel({ sections, run, context }) {
         React.createElement("div", { ref: host }));
 }
 
-function AdaptiveNavigator({ plugin }) {
+function AdaptiveNavigator({ plugin, fileTreeView }) {
+    var _a, _b;
     const [view$1, setView] = Recoil_index_22(view);
     const [path, setPath] = Recoil_index_22(activeFolderPath);
     const [folder, setFolder] = Recoil_index_22(focusedFolder);
+    const [topFocus, setTopFocus] = Recoil_index_22(topFolderFocus);
     const [files] = Recoil_index_22(ozFileList);
     const host = reactExports.useRef(null), pane = reactExports.useRef(null), fileStart = reactExports.useRef(null);
     const folderActions = reactExports.useRef([]), fileActions = reactExports.useRef([]);
@@ -4868,6 +4882,9 @@ function AdaptiveNavigator({ plugin }) {
         return () => window.removeEventListener('fjg-vcc-folder-context', select);
     }, []);
     const pendingJump = reactExports.useRef(false);
+    const jumpGeneration = reactExports.useRef(0);
+    const currentPath = reactExports.useRef(path);
+    currentPath.current = path;
     const [jump, setJump] = reactExports.useState(0);
     const [ratio, setRatio] = reactExports.useState(() => {
         const value = Number(localStorage.getItem('fjgFileFocusDuo-column-ratio'));
@@ -4885,8 +4902,9 @@ function AdaptiveNavigator({ plugin }) {
         return () => window.removeEventListener('fjgduo-show-root-files', show);
     }, []);
     const scrollToFiles = () => {
+        var _a, _b;
         if (!wide && showFiles && fileStart.current && pane.current && files.length) {
-            pane.current.scrollTop = fileStart.current.offsetTop - pane.current.offsetTop - (plugin.settings.fixedHeaderInFileList ? 44 : 0);
+            pane.current.scrollTop = fileStart.current.offsetTop - pane.current.offsetTop - (plugin.settings.fixedHeaderInFileList ? (((_b = (_a = host.current) === null || _a === void 0 ? void 0 : _a.querySelector('.duo-toolbar')) === null || _b === void 0 ? void 0 : _b.getBoundingClientRect().height) || 0) : 0);
         }
     };
     reactExports.useLayoutEffect(() => {
@@ -4905,12 +4923,16 @@ function AdaptiveNavigator({ plugin }) {
                 setFolder(selected);
         }
         let second = 0;
-        const frame = requestAnimationFrame(() => { second = requestAnimationFrame(() => { scrollToFiles(); pendingJump.current = false; }); });
+        const generation = jumpGeneration.current;
+        const frame = requestAnimationFrame(() => { second = requestAnimationFrame(() => { if (generation !== jumpGeneration.current)
+            return; scrollToFiles(); pendingJump.current = false; }); });
         return () => { cancelAnimationFrame(frame); cancelAnimationFrame(second); };
     }, [path, wide, files, focusMode, jump]);
     reactExports.useEffect(() => {
         const choose = (event) => {
             setShortcuts(false);
+            setTopFocus(false);
+            jumpGeneration.current++;
             const selected = event.detail;
             if (!(selected instanceof obsidian.TFolder))
                 return;
@@ -4925,29 +4947,60 @@ function AdaptiveNavigator({ plugin }) {
         return () => window.removeEventListener(FOLDER_SELECTED, choose);
     }, [wide, files]);
     const navigate = (target) => {
+        jumpGeneration.current++;
+        pendingJump.current = false;
+        currentPath.current = target.path;
+        setTopFocus(false);
         setShortcuts(false);
         setRootFilesVisible(false);
         setFolder(target);
         setPath(target.path);
         setView('file');
         setJump(value => value + 1);
-        requestAnimationFrame(scrollToFiles);
+    };
+    const closePane = () => {
+        var _a, _b;
+        const leaf = fileTreeView === null || fileTreeView === void 0 ? void 0 : fileTreeView.leaf;
+        const workspace = plugin.app.workspace;
+        if (workspace.leftSplit && ((_a = leaf === null || leaf === void 0 ? void 0 : leaf.getRoot) === null || _a === void 0 ? void 0 : _a.call(leaf)) === workspace.leftSplit) {
+            workspace.leftSplit.collapse();
+            return;
+        }
+        if (workspace.rightSplit && ((_b = leaf === null || leaf === void 0 ? void 0 : leaf.getRoot) === null || _b === void 0 ? void 0 : _b.call(leaf)) === workspace.rightSplit) {
+            workspace.rightSplit.collapse();
+            return;
+        }
+        if (leaf) {
+            leaf.detach();
+            return;
+        }
+        new obsidian.Notice('Close this File Focus pane using its tab close button.');
     };
     const goBack = () => {
-        if (focusMode) {
+        var _a;
+        jumpGeneration.current++;
+        pendingJump.current = false;
+        const current = plugin.app.vault.getAbstractFileByPath(currentPath.current || '/');
+        const action = backAction({ focusMode, topFocus, path: currentPath.current, parent: (_a = current === null || current === void 0 ? void 0 : current.parent) === null || _a === void 0 ? void 0 : _a.path });
+        if (action === 'exit-mode') {
             setView('file');
             return;
         }
-        const current = plugin.app.vault.getAbstractFileByPath(path);
-        if (current instanceof obsidian.TFolder && current.parent)
-            navigate(current.parent);
-        else {
-            setRootFilesVisible(false);
-            if (pane.current)
-                pane.current.scrollTop = 0;
+        if (action === 'clear-focus') {
+            navigate(plugin.app.vault.getRoot());
+            return;
         }
+        if (action === 'parent' && (current === null || current === void 0 ? void 0 : current.parent)) {
+            navigate(current.parent);
+            return;
+        }
+        closePane();
     };
-    const backPress = useLongPress(() => navigate(plugin.app.vault.getRoot()), 500);
+    const jumpToRoot = () => { navigate(plugin.app.vault.getRoot()); new obsidian.Notice('At vault root'); };
+    // Retain the tested touch timer and click suppression; do not add pointer activation.
+    const backPress = useLongPress(jumpToRoot, 500);
+    const nextBack = focusMode ? 'Back to folder view' : topFocus ? 'Clear top-folder focus' : atRoot ? 'Close pane' : `Back to ${((_b = (_a = plugin.app.vault.getAbstractFileByPath(path)) === null || _a === void 0 ? void 0 : _a.parent) === null || _b === void 0 ? void 0 : _b.name) || plugin.app.vault.getName()}`;
+    const crumb = breadcrumbLabel(plugin.app.vault.getName(), path);
     const run = (action, event) => {
         try {
             Promise.resolve(action.run(event)).catch(error => new obsidian.Notice(`${action.title}: ${(error === null || error === void 0 ? void 0 : error.message) || error}`));
@@ -4985,7 +5038,9 @@ function AdaptiveNavigator({ plugin }) {
             pane.current.scrollTop = 0; };
         return [
             ['Navigation', [
-                    { id: 'back', title: 'Back to parent folder', run: goBack },
+                    { id: 'back', title: nextBack, run: goBack },
+                    { id: 'close-pane', title: 'Close File Focus pane', run: closePane },
+                    ...(topFocus ? [{ id: 'clear-focus', title: 'Clear top-folder focus', run: () => navigate(plugin.app.vault.getRoot()) }] : []),
                     { id: 'folders', title: 'Go Back to Folder View / Close File Pane', run: browseFolders },
                     { id: 'root', title: 'Jump to vault root', run: () => navigate(plugin.app.vault.getRoot()) },
                     ...(atRoot ? [{ id: 'root-files', title: rootFilesVisible ? 'Hide vault-root files' : 'Show vault-root files', run: () => setRootFilesVisible(value => !value) }] : []),
@@ -4993,6 +5048,7 @@ function AdaptiveNavigator({ plugin }) {
                     { id: 'bookmarks', title: 'Bookmarks', run: () => { setShortcuts(false); setView('bookmarks'); } },
                 ]],
             ['Folder buttons', folderActions.current],
+            ['Pane', [{ id: 'settings', title: 'File Focus settings', run: settingsAction }, { id: 'pin', title: 'Toggle pane pin', run: pinAction }]],
             ['Note buttons', fileActions.current.map(action => action.id === 'search' ? Object.assign(Object.assign({}, action), { run: () => { setShortcuts(false); if (focusMode)
                         window.dispatchEvent(new Event(FOCUS_SEARCH));
                     else {
@@ -5002,6 +5058,11 @@ function AdaptiveNavigator({ plugin }) {
                     } } }) : action)],
         ];
     };
+    const settingsAction = () => { const settings = plugin.app.setting; settings === null || settings === void 0 ? void 0 : settings.open(); settings === null || settings === void 0 ? void 0 : settings.openTabById(plugin.manifest.id); };
+    const pinAction = () => { var _a, _b; const pin = (_b = (_a = host.current) === null || _a === void 0 ? void 0 : _a.closest('.workspace-drawer')) === null || _b === void 0 ? void 0 : _b.querySelector('.workspace-drawer-header .mod-pin'); if (pin)
+        pin.click();
+    else if (fileTreeView === null || fileTreeView === void 0 ? void 0 : fileTreeView.leaf)
+        fileTreeView.leaf.setPinned(!fileTreeView.leaf.getViewState().pinned); };
     const allButtons = () => new AllButtonsModal(plugin.app, actionSections(), run).open();
     const runShortcut = (action, event) => {
         // Resolve the current handler: note/folder context can change while this panel stays open.
@@ -5010,24 +5071,31 @@ function AdaptiveNavigator({ plugin }) {
         requestAnimationFrame(() => refreshShortcuts(value => value + 1));
     };
     const toolbar = React.createElement("div", { className: `duo-toolbar${plugin.settings.fixedHeaderInFileList ? ' duo-toolbar-fixed' : ''}`, role: "toolbar", "aria-label": "File Focus Duo" },
-        React.createElement("button", Object.assign({ className: "duo-back", "data-ignore-swipe": "true", "aria-label": `Back from ${path || 'vault root'}. Hold to jump to root.`, title: path || 'Vault root', onClick: goBack, onContextMenu: e => { e.preventDefault(); navigate(plugin.app.vault.getRoot()); } }, backPress),
-            React.createElement(FaArrowCircleLeft, null),
-            React.createElement("span", null, focusMode ? view$1 : ((path === null || path === void 0 ? void 0 : path.split('/').pop()) || plugin.app.vault.getName()))),
-        React.createElement("button", { "aria-label": "Search", title: "Search", onClick: e => { setShortcuts(false); if (focusMode)
-                window.dispatchEvent(new Event(FOCUS_SEARCH));
-            else {
-                if (atRoot)
-                    setRootFilesVisible(true);
-                fileAction('search', e);
-            } } },
-            React.createElement(IoIosSearch, null)),
-        React.createElement("button", { "aria-label": "New note", title: "New note", onClick: e => fileAction('new-note', e) },
-            React.createElement(IoIosAddCircle, null)),
-        React.createElement("button", { "aria-label": "Recent", title: "Recent", "aria-pressed": view$1 === 'recent', onClick: () => { setShortcuts(false); setView('recent'); } },
-            React.createElement(FaHistory, null)),
-        React.createElement("button", { "aria-label": "Bookmarks", title: "Bookmarks", "aria-pressed": view$1 === 'bookmarks', onClick: () => { setShortcuts(false); setView('bookmarks'); } },
-            React.createElement(FaRegBookmark, null)),
-        React.createElement("button", { "aria-label": "All File Focus buttons", title: "All File Focus buttons", onClick: allButtons, onContextMenu: e => { e.preventDefault(); overflow(e); } }, "\u22EF"));
+        React.createElement("button", Object.assign({ className: "duo-back", "data-ignore-swipe": "true", "aria-label": nextBack, title: `${plugin.app.vault.getName()} / ${path || ''}`, onClick: goBack, onContextMenu: e => { e.preventDefault(); jumpToRoot(); } }, backPress),
+            atRoot && !focusMode && !topFocus ? React.createElement("span", { className: "duo-close-icon", "aria-hidden": "true" }, "\u00D7") : React.createElement(FaArrowCircleLeft, null),
+            React.createElement("span", { className: "duo-breadcrumb" },
+                React.createElement("span", { className: "duo-crumb-first" }, crumb.first),
+                crumb.last && React.createElement(React.Fragment, null,
+                    React.createElement("span", { className: "duo-crumb-middle" },
+                        " / ",
+                        crumb.collapsed ? '… / ' : ''),
+                    React.createElement("span", { className: "duo-crumb-last" }, crumb.last)))),
+        React.createElement("div", { className: "duo-icon-row" },
+            React.createElement("button", { "data-ignore-swipe": "true", "aria-label": "Search", title: "Search", onClick: e => { setShortcuts(false); if (focusMode)
+                    window.dispatchEvent(new Event(FOCUS_SEARCH));
+                else {
+                    if (atRoot)
+                        setRootFilesVisible(true);
+                    fileAction('search', e);
+                } } },
+                React.createElement(IoIosSearch, null)),
+            React.createElement("button", { "data-ignore-swipe": "true", "aria-label": "New note", title: "New note", onClick: e => fileAction('new-note', e) },
+                React.createElement(IoIosAddCircle, null)),
+            React.createElement("button", { "data-ignore-swipe": "true", "aria-label": "Recent", title: "Recent", "aria-pressed": view$1 === 'recent', onClick: () => { setShortcuts(false); setView('recent'); } },
+                React.createElement(FaHistory, null)),
+            React.createElement("button", { "data-ignore-swipe": "true", "aria-label": "Bookmarks", title: "Bookmarks", "aria-pressed": view$1 === 'bookmarks', onClick: () => { setShortcuts(false); setView('bookmarks'); } },
+                React.createElement(FaRegBookmark, null)),
+            React.createElement("button", { "data-ignore-swipe": "true", "aria-label": "All File Focus buttons", title: "All File Focus buttons", onClick: allButtons, onContextMenu: e => { e.preventDefault(); overflow(e); } }, "\u22EF")));
     const resize = (e) => {
         if (!host.current)
             return;
@@ -5036,12 +5104,12 @@ function AdaptiveNavigator({ plugin }) {
         setRatio(next);
         localStorage.setItem('fjgFileFocusDuo-column-ratio', String(next));
     };
-    return React.createElement("div", { ref: host, className: `duo-navigator ${wide ? 'duo-wide' : 'duo-compact'} ${plugin.settings.fixedHeaderInFileList ? '' : 'duo-unpinned'} ${showFiles ? '' : 'duo-root-folders-only'}`, "data-layout": wide ? 'columns' : 'drilldown', style: { '--duo-folder-ratio': `${ratio * 100}%` } },
+    return React.createElement("div", { ref: host, className: `duo-navigator ${obsidian.Platform.isPhone && plugin.settings.compactTextPhone ? 'duo-compact-text' : ''} ${wide ? 'duo-wide' : 'duo-compact'} ${plugin.settings.fixedHeaderInFileList ? '' : 'duo-unpinned'} ${showFiles ? '' : 'duo-root-folders-only'}`, "data-layout": wide ? 'columns' : 'drilldown', style: { '--duo-folder-ratio': `${ratio * 100}%` } },
         React.createElement("div", { ref: pane, className: "duo-pane duo-main-scroll" },
             toolbar,
             obsidian.Platform.isMobile && React.createElement("div", { className: "duo-panel-switch", role: "group", "aria-label": "Left panel contents" },
-                React.createElement("button", { "aria-pressed": shortcuts, onClick: () => choosePanel(true) }, "Shortcuts"),
-                React.createElement("button", { "aria-pressed": !shortcuts, onClick: () => choosePanel(false) }, "Folders")),
+                React.createElement("button", { "data-ignore-swipe": "true", "aria-pressed": shortcuts, onClick: () => choosePanel(true) }, "Shortcuts"),
+                React.createElement("button", { "data-ignore-swipe": "true", "aria-pressed": !shortcuts, onClick: () => choosePanel(false) }, "Folders")),
             shortcuts && React.createElement(ShortcutPanel, { context: path || plugin.app.vault.getName(), sections: actionSections, run: runShortcut }),
             React.createElement("div", { className: "duo-columns", hidden: focusMode || shortcuts },
                 React.createElement("div", { className: "duo-folder-column", "aria-label": "Folders" },
@@ -5670,7 +5738,7 @@ function MainTreeComponent(props) {
         }
     }
     if (obsidian.Platform.isMobile || !plugin.settings.duoDesktopLegacyLayout)
-        return React.createElement(AdaptiveNavigator, { plugin: plugin });
+        return React.createElement(AdaptiveNavigator, { plugin: plugin, fileTreeView: props.fileTreeView });
     return (React.createElement(React.Fragment, null, view$1 === 'folder' ? (React.createElement(MainFolder, { plugin: plugin })) : view$1 === 'recent' || view$1 === 'bookmarks' ? (plugin.settings.evernoteView === 'Horizontal' ? (React.createElement(SingleViewHorizontal, { plugin: plugin, focusMode: view$1 })) : plugin.settings.evernoteView === 'Vertical' ? (React.createElement(SingleViewVertical, { plugin: plugin, focusMode: view$1 })) : (React.createElement(FocusPanel, { plugin: plugin, mode: view$1 }))) : plugin.settings.evernoteView === 'Horizontal' ? (React.createElement(SingleViewHorizontal, { plugin: plugin })) : plugin.settings.evernoteView === 'Vertical' ? (React.createElement(SingleViewVertical, { plugin: plugin })) : (React.createElement(FileComponent, { plugin: plugin }))));
 }
 
@@ -5898,6 +5966,7 @@ const DEFAULT_SETTINGS = {
     liveBackendModel: 'gpt-5.6-terra',
     openViewOnStart: true,
     mobilePerformanceMode: DEFAULT_MOBILE_PERFORMANCE_MODE,
+    compactTextPhone: true,
     ribbonIcon: true,
     followActiveFile: true,
     showRootFolder: true,
@@ -5946,6 +6015,7 @@ class FileTreeAlternativePluginSettingsTab extends obsidian.PluginSettingTab {
     display() {
         let { containerEl } = this;
         containerEl.empty();
+        new obsidian.Setting(containerEl).setName('Compact text (phone)').setDesc('Compact labels on phones; touch targets remain at least 44 pixels. Style Settings font overrides take precedence.').addToggle(toggle => toggle.setValue(this.plugin.settings.compactTextPhone).onChange((value) => __awaiter(this, void 0, void 0, function* () { this.plugin.settings.compactTextPhone = value; yield this.plugin.saveSettings(); this.refreshView(); })));
         new obsidian.Setting(containerEl).setName('Duo two-column minimum width').setDesc('Panel width in CSS pixels. 560 separates the four measured Duo layouts; tune after device testing.').addText(text => text.setValue(String(this.plugin.settings.duoColumnWidth)).onChange((value) => __awaiter(this, void 0, void 0, function* () { const width = Number(value); if (Number.isFinite(width) && width >= 440 && width <= 1000) {
             this.plugin.settings.duoColumnWidth = width;
             yield this.plugin.saveSettings();

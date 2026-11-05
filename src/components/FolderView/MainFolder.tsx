@@ -65,6 +65,7 @@ export function MainFolder(props: FolderProps) {
     const [view, setView] = useRecoilState(recoilState.view);
     const [folderTree] = useRecoilState(recoilState.folderTree);
     const [focusedFolder, setFocusedFolder] = useRecoilState(recoilState.focusedFolder);
+    const [, setTopFolderFocus] = useRecoilState(recoilState.topFolderFocus);
     const [_openFolders, setOpenFolders] = useRecoilState(recoilState.openFolders);
     const [activeOzFile] = useRecoilState(recoilState.activeOZFile);
     const [followActiveFile, setFollowActiveFile] = React.useState(plugin.settings.followActiveFile);
@@ -82,6 +83,7 @@ export function MainFolder(props: FolderProps) {
     const forceUpdate = useForceUpdate();
 
     const focusOnFolder = (folder: TFolder) => {
+        setTopFolderFocus(!folder.isRoot());
         setFocusedFolder(folder);
         setActiveFolderPath(folder.path);
     };
@@ -318,7 +320,6 @@ export function MainFolder(props: FolderProps) {
         { id: 'dashboard', title: 'Open selected folder dashboard', run: openUniversalDashboard },
         { id: 'new-folder', title: 'New Folder', run: createFolderInCurrentFolder },
         { id: 'folder-tags', title: 'Review Selected Folder Tags with AI', run: reviewSelectedFolderTags },
-        { id: 'folder-navigator', title: 'Open Folder Navigator', run: openFolderNavigator },
         { id: 'omnisearch', title: 'Open Omnisearch', run: openOmnisearch },
         { id: 'follow', title: `Follow active note: ${followActiveFile ? 'on' : 'off'}`, run: () => Platform.isMobile ? new Notice('Follow active note is desktop-only. Use Reveal Active File from the command palette.') : toggleFollowActiveFile() },
         { id: 'folder-sort', title: 'Folder sorting options', run: triggerFolderSortOptions },

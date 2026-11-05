@@ -40,7 +40,7 @@ export function renderActionButtons(container:HTMLElement, sections:[string,DuoA
             const grid=document.createElement('div'); grid.className='duo-buttons-grid'; section.appendChild(grid);
             const buttons:HTMLButtonElement[]=[];
             for (const action of actions.filter(a=>a.visible!==false)) {
-                const button=document.createElement('button'); button.type='button'; button.dataset.actionId=action.id;
+                const button=document.createElement('button'); button.dataset.ignoreSwipe='true'; button.type='button'; button.dataset.actionId=action.id;
                 const icon=document.createElement('span'); icon.setAttribute('aria-hidden','true'); setIcon(icon,icons[action.id] || 'circle');
                 const label=document.createElement('span'); label.textContent=action.title;
                 button.append(icon,label);

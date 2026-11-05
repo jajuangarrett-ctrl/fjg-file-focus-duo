@@ -89,7 +89,7 @@ export class VaultChangeModal extends Modal {
         // Input El
         const inputEl = contentEl.createEl('input');
 
-        inputEl.style.cssText = 'width: 100%; height: 2.5em; margin-bottom: 15px;';
+        inputEl.addClass('fjgduo-modal-input');
         if (this.action === 'rename') {
             // Manual Rename Handler For md Files
             if (this.file.path.endsWith('.md')) {

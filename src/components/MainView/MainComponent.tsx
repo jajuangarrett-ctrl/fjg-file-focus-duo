@@ -583,7 +583,7 @@ export default function MainTreeComponent(props: MainTreeComponentProps) {
         }
     }
 
-    if (Platform.isMobile || !plugin.settings.duoDesktopLegacyLayout) return <AdaptiveNavigator plugin={plugin}/>;
+    if (Platform.isMobile || !plugin.settings.duoDesktopLegacyLayout) return <AdaptiveNavigator plugin={plugin} fileTreeView={props.fileTreeView}/>;
 
     return (
         <React.Fragment>

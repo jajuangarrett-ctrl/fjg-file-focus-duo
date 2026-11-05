@@ -33,7 +33,7 @@ export function VirtualFiles({ files, render, layoutKey }: { layoutKey: string; 
                 const list=element.current, scroll=list?.closest('.duo-pane') as HTMLElement;
                 if(!list || !scroll || !list.getClientRects().length)return;
                 const offset=list.getBoundingClientRect().top-scroll.getBoundingClientRect().top+scroll.scrollTop;
-                const pinned=scroll.classList.contains('duo-main-scroll') && Boolean(scroll.querySelector('.duo-toolbar-fixed')) ? 44 : 0;
+                const pinned=scroll.classList.contains('duo-main-scroll') && Boolean(scroll.querySelector('.duo-toolbar-fixed')) ? (scroll.querySelector('.duo-toolbar-fixed')?.getBoundingClientRect().height || 0) : 0;
                 scroll.scrollTop=offset+index*FILE_ROW_HEIGHT-pinned;
             });});});
         };

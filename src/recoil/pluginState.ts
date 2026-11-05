@@ -63,3 +63,6 @@ export const focusedFolder = atom({
     default: null as TFolder,
     dangerouslyAllowMutability: true,
 });
+
+/** Explicit top-folder focus, separate from normal mobile drill-down. */
+export const topFolderFocus = atom({key: "fjgduo-topFolderFocus", default:false});

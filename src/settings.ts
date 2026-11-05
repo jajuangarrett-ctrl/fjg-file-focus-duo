@@ -17,6 +17,7 @@ export interface FileTreeAlternativePluginSettings {
     liveBackendModel: string;
     openViewOnStart: boolean;
     mobilePerformanceMode: boolean;
+    compactTextPhone: boolean;
     ribbonIcon: boolean;
     followActiveFile: boolean;
     showRootFolder: boolean;
@@ -59,6 +60,7 @@ export const DEFAULT_SETTINGS: FileTreeAlternativePluginSettings = {
     liveBackendModel: 'gpt-5.6-terra',
     openViewOnStart: true,
     mobilePerformanceMode: DEFAULT_MOBILE_PERFORMANCE_MODE,
+    compactTextPhone: true,
     ribbonIcon: true,
     followActiveFile: true,
     showRootFolder: true,
@@ -112,6 +114,7 @@ export class FileTreeAlternativePluginSettingsTab extends PluginSettingTab {
     display(): void {
         let { containerEl } = this;
         containerEl.empty();
+        new Setting(containerEl).setName('Compact text (phone)').setDesc('Compact labels on phones; touch targets remain at least 44 pixels. Style Settings font overrides take precedence.').addToggle(toggle => toggle.setValue(this.plugin.settings.compactTextPhone).onChange(async value => { this.plugin.settings.compactTextPhone = value; await this.plugin.saveSettings(); this.refreshView(); }));
         new Setting(containerEl).setName('Duo two-column minimum width').setDesc('Panel width in CSS pixels. 560 separates the four measured Duo layouts; tune after device testing.').addText(text => text.setValue(String(this.plugin.settings.duoColumnWidth)).onChange(async value => { const width = Number(value); if (Number.isFinite(width) && width >= 440 && width <= 1000) { this.plugin.settings.duoColumnWidth = width; await this.plugin.saveSettings(); this.refreshView(); } }));
         new Setting(containerEl).setName('Use legacy desktop layout').setDesc('Desktop only. Restore the Evernote layout setting below. Mobile always uses the adaptive navigator.').addToggle(toggle => toggle.setValue(this.plugin.settings.duoDesktopLegacyLayout).onChange(async value => { this.plugin.settings.duoDesktopLegacyLayout = value; await this.plugin.saveSettings(); this.refreshView(); }));
 

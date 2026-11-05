@@ -26,6 +26,7 @@ export function NestedFolders(props: NestedFoldersProps) {
     const [activeFolderPath, setActiveFolderPath] = useRecoilState(recoilState.activeFolderPath);
     const [excludedFolders, setExcludedFolders] = useRecoilState(recoilState.excludedFolders);
     const [focusedFolder, setFocusedFolder] = useRecoilState(recoilState.focusedFolder);
+    const [, setTopFolderFocus] = useRecoilState(recoilState.topFolderFocus);
     const [folderFileCountMap] = useRecoilState(recoilState.folderFileCountMap);
     const [_view, setView] = useRecoilState(recoilState.view);
 
@@ -35,6 +36,7 @@ export function NestedFolders(props: NestedFoldersProps) {
     };
 
     const focusOnFolder = (folder: TFolder) => {
+        setTopFolderFocus(!folder.isRoot());
         setFocusedFolder(folder);
         setActiveFolderPath(folder.path);
     };
