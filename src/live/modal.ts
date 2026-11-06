@@ -9,6 +9,7 @@ export class VaultVoiceModal extends Modal {
   private closed = false;
   private muted = false;
   private status!: HTMLElement;
+  private inputStatus!: HTMLElement;
   private coverage!: HTMLElement;
   private transcript!: HTMLElement;
   private saved!: HTMLElement;
@@ -36,6 +37,7 @@ export class VaultVoiceModal extends Modal {
     root.createEl('p', { cls: 'fjgduo-vault-live-intro', text: 'Ask about your notes, capture a thought, or say what to update. Clear edits save immediately.' });
     root.createEl('p', { cls: 'fjgduo-vault-live-caption', text: 'Starting sends microphone audio, the vault name, selected paths and relevant note excerpts to OpenAI. API charges may apply. ' + (this.plugin.settings.liveApiKey?.trim() ? 'Uses the key saved in File Focus Duo.' : 'Uses the key saved in Objective Manager for this conversation without copying or saving it in Duo.') });
     this.status = root.createEl('p', { cls: 'fjgduo-vault-live-status', text: 'Microphone off — review the details before starting', attr: { role: 'status', 'aria-live': 'polite' } });
+    this.inputStatus = root.createEl('p', { cls: 'fjgduo-vault-live-caption', text: 'Microphone off.', attr: { role: 'status', 'aria-live': 'polite', 'aria-label': 'Microphone input' } });
     this.coverage = root.createEl('p', { cls: 'fjgduo-vault-live-coverage', attr: { role: 'status' } });
     const controls = root.createDiv({ cls: 'fjgduo-vault-live-controls' });
     this.startButton = controls.createEl('button', { text: this.startLabel(), cls: 'mod-cta' });
@@ -97,6 +99,7 @@ export class VaultVoiceModal extends Modal {
     });
     session = new VaultLiveSession(this.audio, {
       state: (state, message) => this.setState(state, message),
+      inputStatus: message => { if (!this.closed) this.inputStatus.setText(message); },
       transcript: (speaker, delta) => this.addTranscript(speaker, delta),
       execute: (name, args) => tools.execute(name, args)
     });

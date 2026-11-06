@@ -1,6 +1,6 @@
 {
   "name": "fjg-file-focus-duo",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "FJG-focused Obsidian file tree with sidebar recent notes and bookmarks.",
   "main": "main.js",
   "scripts": {

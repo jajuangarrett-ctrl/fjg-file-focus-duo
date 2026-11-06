@@ -1061,9 +1061,9 @@ svg.fjgduo-folder-toggle path {
 body.is-mobile .duo-navigator.duo-wide .duo-columns { height:calc(100% - 96px); }
 
 /* Layout handoff: separate navigation and actions without overlapping hit areas. */
-.duo-navigator .duo-toolbar { display:flex; flex-direction:column; height:88px; min-height:88px; overflow:visible; }
+.duo-navigator .duo-toolbar { display:flex; flex-direction:column; height:auto; min-height:88px; overflow:visible; }
 .duo-navigator .duo-toolbar button.duo-back { width:100%; flex:0 0 44px; padding-inline:8px; gap:6px; }
-.duo-navigator .duo-icon-row { display:flex; justify-content:flex-end; width:100%; height:44px; flex:none; overflow:visible; }
+.duo-navigator .duo-icon-row { display:flex; flex-wrap:wrap; justify-content:flex-end; width:100%; min-height:44px; height:auto; flex:none; overflow:visible; }
 .duo-navigator .duo-icon-row button { flex:0 0 44px; }
 .duo-navigator .duo-back .duo-breadcrumb { display:flex; flex:1; min-width:0; align-items:center; }
 .duo-navigator .duo-crumb-first { flex:0 1 auto; min-width:32px; max-width:45%; }
@@ -1077,8 +1077,17 @@ body.is-mobile .duo-navigator.duo-wide .duo-columns { height:calc(100% - 140px);
 .duo-navigator .duo-folder-column,.duo-navigator .duo-file-column { scroll-padding-bottom:44px; }
 .duo-navigator .duo-search { height:44px; }
 .duo-navigator input[type=search] { min-height:44px; font-size:16px; }
-.duo-navigator.duo-compact .duo-shortcuts .duo-buttons-grid { grid-template-columns:minmax(0,1fr); }
+.duo-navigator.duo-compact .duo-shortcuts .duo-buttons-grid { grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr)); }
 .duo-navigator.duo-wide .duo-shortcuts .duo-buttons-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.duo-shortcut-header { display:flex; align-items:center; gap:4px; min-height:44px; }
+.duo-shortcut-header .duo-shortcut-context { flex:1; min-width:0; margin:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:var(--font-ui-small); }
+.duo-shortcut-header button { display:flex; align-items:center; justify-content:center; flex:0 0 44px; width:44px; height:44px; min-height:44px; margin:0; padding:0; }
+.duo-shortcut-header button svg { width:20px; height:20px; }
+.duo-shortcuts input[hidden] { display:none; }
+.duo-shortcuts input { margin:0 0 4px; }
+.duo-shortcuts h3 { margin:6px 0 4px; font-size:14px; line-height:20px; }
+.duo-shortcuts .duo-buttons-grid { gap:4px; }
+.duo-shortcuts .duo-buttons-grid button { padding:8px; }
 
 /* Phone-only defaults; explicit Style Settings values still win on body. */
 body.is-phone { --fjg-font-2xs:9px; --fjg-font-xs:10.5px; --fjg-font-sm:12px; --fjg-font-md:13px; --fjg-font-lg:16px; --fjg-font-xl:20px; --fjg-line:1.3; --fjg-row-h:30px; --fjg-tap-min:44px; --fjg-toolbar-h:36px; --fjg-icon:16px; --fjg-footer-h:28px; --fjg-pad-x:8px; }

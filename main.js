@@ -4769,16 +4769,18 @@ class AllButtonsModal extends obsidian.Modal {
     onClose() { this.contentEl.replaceChildren(); }
 }
 /** Shared action list for the sidebar and optional modal. */
-function renderActionButtons(container, sections, run) {
+function renderActionButtons(container, sections, run, options = {}) {
     const search = document.createElement('input');
     search.type = 'search';
     search.placeholder = 'Find a button…';
     search.setAttribute('aria-label', 'Find a button');
     container.appendChild(search);
-    const hint = document.createElement('p');
-    hint.className = 'duo-buttons-hint';
-    hint.textContent = 'Folder buttons use the selected folder. Note buttons use the current note.';
-    container.appendChild(hint);
+    if (!options.compact) {
+        const hint = document.createElement('p');
+        hint.className = 'duo-buttons-hint';
+        hint.textContent = 'Folder buttons use the selected folder. Note buttons use the current note.';
+        container.appendChild(hint);
+    }
     const groups = [];
     for (const [title, actions] of sections) {
         const section = document.createElement('section');
@@ -4832,27 +4834,32 @@ function renderActionButtons(container, sections, run) {
 
 function ShortcutPanel({ sections, run, context }) {
     const host = reactExports.useRef(null);
+    const [searchOpen, setSearchOpen] = reactExports.useState(false);
+    const wasSearchOpen = reactExports.useRef(false);
     reactExports.useEffect(() => {
         const node = host.current;
         if (!node)
             return;
         const old = node.querySelector('input');
-        const query = (old === null || old === void 0 ? void 0 : old.value) || '';
+        const query = searchOpen ? (old === null || old === void 0 ? void 0 : old.value) || '' : '';
         const focused = document.activeElement === old;
         node.replaceChildren();
-        renderActionButtons(node, sections(), run);
+        renderActionButtons(node, sections(), run, { compact: true });
         const search = node.querySelector('input');
         if (search) {
+            search.hidden = !searchOpen;
             search.value = query;
             search.dispatchEvent(new Event('input'));
-            if (focused)
+            if (searchOpen && (focused || !wasSearchOpen.current))
                 search.focus();
         }
+        wasSearchOpen.current = searchOpen;
     });
     return React.createElement("section", { className: "duo-shortcuts", "aria-label": "File Focus shortcuts" },
-        React.createElement("p", { className: "duo-shortcut-context" },
-            "Selected folder: ",
-            context),
+        React.createElement("div", { className: "duo-shortcut-header" },
+            React.createElement("p", { className: "duo-shortcut-context", title: `Selected folder: ${context}`, "aria-label": `Selected folder: ${context}` }, context),
+            React.createElement("button", { type: "button", "data-ignore-swipe": "true", "aria-label": "Find a button", title: "Find a button", "aria-expanded": searchOpen, onClick: () => setSearchOpen(value => !value) },
+                React.createElement(IoIosSearch, { "aria-hidden": "true" }))),
         React.createElement("div", { ref: host }));
 }
 
@@ -5016,6 +5023,13 @@ function AdaptiveNavigator({ plugin, fileTreeView }) {
         else
             new obsidian.Notice('The navigator is still loading. Try again shortly.');
     };
+    const folderAction = (id, event) => {
+        const action = folderActions.current.find(item => item.id === id);
+        if (action)
+            run(action, event);
+        else
+            new obsidian.Notice('The navigator is still loading. Try again shortly.');
+    };
     const overflow = (event) => {
         const menu = new obsidian.Menu();
         const add = (title, action) => menu.addItem(item => item.setTitle(title).onClick(() => run({ id: title, title, run: action }, event)));
@@ -5081,6 +5095,10 @@ function AdaptiveNavigator({ plugin, fileTreeView }) {
                         crumb.collapsed ? '… / ' : ''),
                     React.createElement("span", { className: "duo-crumb-last" }, crumb.last)))),
         React.createElement("div", { className: "duo-icon-row" },
+            React.createElement("button", { "data-ignore-swipe": "true", "aria-label": "Open Vault Control Center", title: "Vault Control Center", onClick: e => folderAction('home', e) },
+                React.createElement(FaHome, { "aria-hidden": "true" })),
+            React.createElement("button", { "data-ignore-swipe": "true", "aria-label": "Open FJG Objective Manager", title: "FJG Objective Manager", onClick: e => folderAction('tasks', e) },
+                React.createElement(LuListChecks, { "aria-hidden": "true" })),
             React.createElement("button", { "data-ignore-swipe": "true", "aria-label": "Search", title: "Search", onClick: e => { setShortcuts(false); if (focusMode)
                     window.dispatchEvent(new Event(FOCUS_SEARCH));
                 else {
@@ -6753,6 +6771,10 @@ class VaultLiveSession {
         this.playbackBlocked = false;
         this.disposed = false;
         this.ending = false;
+        this.pendingBackendEvents = [];
+        this.connectedAt = 0;
+        this.inputRecognized = false;
+        this.lastInputStatus = '';
         this.loop = new LiveToolLoop(callbacks.execute, (event) => this.send(event));
     }
     get active() { return this.ready && !this.disposed && !this.ending; }
@@ -6843,7 +6865,12 @@ class VaultLiveSession {
             }
         });
     }
-    mute(muted) { var _a; (_a = this.microphone) === null || _a === void 0 ? void 0 : _a.getAudioTracks().forEach((track) => { track.enabled = !muted; }); }
+    mute(muted) {
+        var _a;
+        (_a = this.microphone) === null || _a === void 0 ? void 0 : _a.getAudioTracks().forEach((track) => { track.enabled = !muted; });
+        if (this.active)
+            this.setInputStatus(muted ? 'Microphone muted.' : 'Microphone on — waiting for recognized speech.');
+    }
     selectedNote(path) {
         if (!this.active)
             return;
@@ -6857,6 +6884,9 @@ class VaultLiveSession {
             return;
         this.ending = true;
         this.loop.stop();
+        this.pendingBackendEvents = [];
+        clearTimeout(this.inputTimer);
+        this.setInputStatus('Microphone off.');
         // End immediately disables input and further writes; keep the channel for final usage.
         this.mute(true);
         (_a = this.microphone) === null || _a === void 0 ? void 0 : _a.getTracks().forEach((track) => track.stop());
@@ -6878,17 +6908,20 @@ class VaultLiveSession {
             return;
         this.disposed = true;
         this.loop.stop();
+        this.pendingBackendEvents = [];
         clearTimeout(this.timer);
         clearTimeout(this.readinessTimer);
+        clearTimeout(this.inputTimer);
         (_a = this.microphone) === null || _a === void 0 ? void 0 : _a.getTracks().forEach((track) => track.stop());
         (_b = this.channel) === null || _b === void 0 ? void 0 : _b.close();
         (_c = this.peer) === null || _c === void 0 ? void 0 : _c.close();
         this.audio.pause();
         this.audio.srcObject = null;
         this.ready = false;
+        this.setInputStatus('Microphone off.');
     }
     onEvent(event) {
-        var _a, _b;
+        var _a, _b, _c;
         if (this.disposed)
             return;
         if (event.type === "session.started") {
@@ -6906,13 +6939,27 @@ class VaultLiveSession {
             this.fail(`${voiceFailure(undefined, event.error)} Ended the connection; saved changes remain saved.`);
         }
         else if (["session.input_transcript.delta", "session.output_transcript.delta"].includes(event.type) && typeof event.delta === "string") {
+            if (event.type === 'session.input_transcript.delta' && event.delta.trim()) {
+                this.inputRecognized = true;
+                if (this.active)
+                    this.setInputStatus('Speech recognized by OpenAI.');
+            }
             this.callbacks.transcript(event.type === "session.input_transcript.delta" ? "You" : "Assistant", event.delta);
         }
         else if (event.type === "response.event" && ((_a = event.event) === null || _a === void 0 ? void 0 : _a.type) === "response.failed") {
             this.fail(`The vault assistant failed. ${voiceFailure(undefined, (_b = event.event.response) === null || _b === void 0 ? void 0 : _b.error)} Saved changes remain saved.`);
         }
-        else if (event.type === "response.event" && this.active) {
-            void this.loop.handle(event).catch(() => this.fail("Could not finish a voice note request. Check the dashboard before trying the change again."));
+        else if (event.type === "response.event" && this.sessionStarted && !this.ending) {
+            // Lifecycle events can arrive before the phone's audio warm-up completes.
+            // Preserve their order, but allow no vault tool execution until active.
+            if (this.active)
+                this.handleBackendEvent(event);
+            else if (["response.created", "response.output_item.done", "response.completed", "response.failed", "response.cancelled", "response.incomplete"].includes((_c = event.event) === null || _c === void 0 ? void 0 : _c.type)) {
+                if (this.pendingBackendEvents.length >= 256)
+                    this.fail('Too much assistant work arrived before the microphone was ready. Start a new conversation.');
+                else
+                    this.pendingBackendEvents.push(event);
+            }
         }
     }
     /** A session event alone does not establish that the phone audio path is sending. */
@@ -6945,7 +6992,13 @@ class VaultLiveSession {
                     if (Date.now() - this.audioStableSince >= (obsidian.Platform.isMobile ? 3500 : 200)) {
                         this.ready = true;
                         clearTimeout(this.timer);
+                        this.connectedAt = Date.now();
+                        const pending = this.pendingBackendEvents;
+                        this.pendingBackendEvents = [];
+                        for (const event of pending)
+                            this.handleBackendEvent(event);
                         this.callbacks.state("connected", this.playbackBlocked ? "Ready — start speaking. Press play below to hear replies." : "Ready — start speaking");
+                        void this.checkInput();
                         return;
                     }
                 }
@@ -6958,6 +7011,58 @@ class VaultLiveSession {
                 this.audioStableSince = 0;
             }
             this.readinessTimer = setTimeout(() => void this.checkAudioReady(), 200);
+        });
+    }
+    handleBackendEvent(event) {
+        void this.loop.handle(event).catch(() => this.fail("Could not finish a voice note request. Check the dashboard before trying the change again."));
+    }
+    setInputStatus(message) {
+        var _a, _b;
+        if (message === this.lastInputStatus)
+            return;
+        this.lastInputStatus = message;
+        (_b = (_a = this.callbacks).inputStatus) === null || _b === void 0 ? void 0 : _b.call(_a, message);
+    }
+    /** Local numeric WebRTC levels only; never record, persist or transmit diagnostics. */
+    checkInput() {
+        var _a, _b;
+        return __awaiter(this, void 0, void 0, function* () {
+            clearTimeout(this.inputTimer);
+            if (!this.active)
+                return;
+            const track = (_a = this.microphone) === null || _a === void 0 ? void 0 : _a.getAudioTracks()[0];
+            let message;
+            if (!track || track.readyState !== 'live' || track.muted)
+                message = 'The phone microphone is not providing audio. Check microphone permission and the Bluetooth route.';
+            else if (!track.enabled)
+                message = 'Microphone muted.';
+            else if (this.inputRecognized)
+                message = 'Speech recognized by OpenAI.';
+            else {
+                let level;
+                try {
+                    const stats = yield ((_b = this.peer) === null || _b === void 0 ? void 0 : _b.getStats());
+                    stats === null || stats === void 0 ? void 0 : stats.forEach(report => {
+                        if (report.type === 'media-source' && report.kind === 'audio' && typeof report.audioLevel === 'number')
+                            level = Math.max(level !== null && level !== void 0 ? level : 0, report.audioLevel);
+                    });
+                }
+                catch ( /* Level reporting is optional on mobile WebRTC implementations. */_c) { /* Level reporting is optional on mobile WebRTC implementations. */ }
+                if (!this.active)
+                    return;
+                if (level !== undefined && level > 0.01)
+                    message = 'Microphone sound detected — waiting for recognized speech.';
+                else if (Date.now() - this.connectedAt >= 10000)
+                    message = level === undefined
+                        ? 'No speech recognized yet. This phone does not report input levels; check microphone permission and the Bluetooth route.'
+                        : 'No speech recognized and the microphone is quiet. Check microphone permission and the Bluetooth route.';
+                else
+                    message = 'Microphone on — waiting for recognized speech.';
+            }
+            if (!this.active)
+                return;
+            this.setInputStatus(message);
+            this.inputTimer = setTimeout(() => void this.checkInput(), 500);
         });
     }
     send(event) {
@@ -7078,6 +7183,7 @@ class VaultVoiceModal extends obsidian.Modal {
         root.createEl('p', { cls: 'fjgduo-vault-live-intro', text: 'Ask about your notes, capture a thought, or say what to update. Clear edits save immediately.' });
         root.createEl('p', { cls: 'fjgduo-vault-live-caption', text: 'Starting sends microphone audio, the vault name, selected paths and relevant note excerpts to OpenAI. API charges may apply. ' + (((_a = this.plugin.settings.liveApiKey) === null || _a === void 0 ? void 0 : _a.trim()) ? 'Uses the key saved in File Focus Duo.' : 'Uses the key saved in Objective Manager for this conversation without copying or saving it in Duo.') });
         this.status = root.createEl('p', { cls: 'fjgduo-vault-live-status', text: 'Microphone off — review the details before starting', attr: { role: 'status', 'aria-live': 'polite' } });
+        this.inputStatus = root.createEl('p', { cls: 'fjgduo-vault-live-caption', text: 'Microphone off.', attr: { role: 'status', 'aria-live': 'polite', 'aria-label': 'Microphone input' } });
         this.coverage = root.createEl('p', { cls: 'fjgduo-vault-live-coverage', attr: { role: 'status' } });
         const controls = root.createDiv({ cls: 'fjgduo-vault-live-controls' });
         this.startButton = controls.createEl('button', { text: this.startLabel(), cls: 'mod-cta' });
@@ -7160,6 +7266,8 @@ class VaultVoiceModal extends obsidian.Modal {
             });
             session = new VaultLiveSession(this.audio, {
                 state: (state, message) => this.setState(state, message),
+                inputStatus: message => { if (!this.closed)
+                    this.inputStatus.setText(message); },
                 transcript: (speaker, delta) => this.addTranscript(speaker, delta),
                 execute: (name, args) => tools.execute(name, args)
             });

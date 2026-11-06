@@ -26,13 +26,15 @@ export class AllButtonsModal extends Modal {
 }
 
 /** Shared action list for the sidebar and optional modal. */
-export function renderActionButtons(container:HTMLElement, sections:[string,DuoAction[]][], run:(action:DuoAction,event?:MouseEvent)=>void) {
+export function renderActionButtons(container:HTMLElement, sections:[string,DuoAction[]][], run:(action:DuoAction,event?:MouseEvent)=>void, options:{compact?:boolean} = {}) {
         const search=document.createElement('input');
         search.type='search'; search.placeholder='Find a button…'; search.setAttribute('aria-label','Find a button');
         container.appendChild(search);
-        const hint=document.createElement('p');
-        hint.className='duo-buttons-hint'; hint.textContent='Folder buttons use the selected folder. Note buttons use the current note.';
-        container.appendChild(hint);
+        if (!options.compact) {
+            const hint=document.createElement('p');
+            hint.className='duo-buttons-hint'; hint.textContent='Folder buttons use the selected folder. Note buttons use the current note.';
+            container.appendChild(hint);
+        }
         const groups:{section:HTMLElement;buttons:HTMLButtonElement[]}[]=[];
         for (const [title,actions] of sections) {
             const section=document.createElement('section');

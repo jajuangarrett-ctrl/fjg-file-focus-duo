@@ -1,3 +1,13 @@
+## Layout and voice startup — 0.1.10
+
+The mobile Shortcuts header is now one compact context row with a **Find a button** toggle. Search and the selected folder remain available; the repeated explanatory paragraph is omitted from the sidebar. Shortcut buttons use two columns when the pane is wide enough. Vault Control Center and FJG Objective Manager are now in the upper toolbar, using their existing commands. All eight toolbar controls keep 44px touch targets and wrap within narrow panes.
+
+Voice backend lifecycle events arriving during mobile microphone warm-up are queued in order and processed once readiness is established. Ending, closing, failing or timing out discards queued work. No vault action executes before readiness or after the conversation stops. A bounded queue fails clearly rather than growing indefinitely.
+
+A separate microphone status distinguishes local sound detection, quiet input, unavailable input-level reporting, mute and recognized speech. It reads numeric WebRTC statistics locally; it does not record audio or save/transmit diagnostic data. “Ready” still means the audio connection is prepared; recognized speech is confirmed separately. This startup fix does not establish the cause of every phone microphone or transcription failure.
+
+Non-billable checks include `npm run typecheck`, `npm test`, `npm run test:voice`, `npm run build`, and `node tests/browser/compact-toolbar.cjs`. Set `DUO_BASELINE` to a 0.1.9 fixture folder to compare visible actions. Phone speech recognition, reply audio and a real vault-search conversation still need device verification; no live API test was run for this update.
+
 ## Talk to Vault — 0.1.9
 
 The adaptive toolbar now includes **Talk to Vault** beside Bookmarks and More. Opening it leaves the microphone off. The Start button names the key source and authorizes that conversation: microphone audio, vault name, selected paths and relevant note excerpts are sent to OpenAI; clear requested edits save immediately and API charges may apply.

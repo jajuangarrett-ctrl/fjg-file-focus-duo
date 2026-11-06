@@ -6,6 +6,7 @@ import { backendInstructions, LIVE_INSTRUCTIONS, LIVE_TOOLS } from "./vault-tool
 export type LiveState = "idle" | "connecting" | "connected" | "ending" | "ended" | "error";
 export interface LiveCallbacks {
   state: (state: LiveState, message: string) => void;
+  inputStatus?: (message: string) => void;
   transcript: (speaker: "You" | "Assistant", delta: string) => void;
   execute: (name: string, args: string, id: string) => Promise<unknown>;
 }
@@ -33,6 +34,11 @@ export class VaultLiveSession {
   private ending = false;
   private timer?: ReturnType<typeof setTimeout>;
   private loop: LiveToolLoop;
+  private pendingBackendEvents: Record<string, any>[] = [];
+  private inputTimer?: ReturnType<typeof setTimeout>;
+  private connectedAt = 0;
+  private inputRecognized = false;
+  private lastInputStatus = '';
   constructor(private audio: HTMLAudioElement, private callbacks: LiveCallbacks) {
     this.loop = new LiveToolLoop(callbacks.execute, (event) => this.send(event));
   }
@@ -96,7 +102,10 @@ export class VaultLiveSession {
     }
   }
 
-  mute(muted: boolean): void { this.microphone?.getAudioTracks().forEach((track) => { track.enabled = !muted; }); }
+  mute(muted: boolean): void {
+    this.microphone?.getAudioTracks().forEach((track) => { track.enabled = !muted; });
+    if (this.active) this.setInputStatus(muted ? 'Microphone muted.' : 'Microphone on — waiting for recognized speech.');
+  }
 
   selectedNote(path: string): void {
     if (!this.active) return;
@@ -109,6 +118,9 @@ export class VaultLiveSession {
     if (this.disposed || this.ending) return;
     this.ending = true;
     this.loop.stop();
+    this.pendingBackendEvents = [];
+    clearTimeout(this.inputTimer);
+    this.setInputStatus('Microphone off.');
     // End immediately disables input and further writes; keep the channel for final usage.
     this.mute(true);
     this.microphone?.getTracks().forEach((track) => track.stop());
@@ -128,14 +140,17 @@ export class VaultLiveSession {
     if (this.disposed) return;
     this.disposed = true;
     this.loop.stop();
+    this.pendingBackendEvents = [];
     clearTimeout(this.timer);
     clearTimeout(this.readinessTimer);
+    clearTimeout(this.inputTimer);
     this.microphone?.getTracks().forEach((track) => track.stop());
     this.channel?.close();
     this.peer?.close();
     this.audio.pause();
     this.audio.srcObject = null;
     this.ready = false;
+    this.setInputStatus('Microphone off.');
   }
 
   private onEvent(event: Record<string, any>): void {
@@ -151,11 +166,21 @@ export class VaultLiveSession {
     } else if (event.type === "error") {
       this.fail(`${voiceFailure(undefined, event.error)} Ended the connection; saved changes remain saved.`);
     } else if (["session.input_transcript.delta", "session.output_transcript.delta"].includes(event.type) && typeof event.delta === "string") {
+      if (event.type === 'session.input_transcript.delta' && event.delta.trim()) {
+        this.inputRecognized = true;
+        if (this.active) this.setInputStatus('Speech recognized by OpenAI.');
+      }
       this.callbacks.transcript(event.type === "session.input_transcript.delta" ? "You" : "Assistant", event.delta);
     } else if (event.type === "response.event" && event.event?.type === "response.failed") {
       this.fail(`The vault assistant failed. ${voiceFailure(undefined, event.event.response?.error)} Saved changes remain saved.`);
-    } else if (event.type === "response.event" && this.active) {
-      void this.loop.handle(event).catch(() => this.fail("Could not finish a voice note request. Check the dashboard before trying the change again."));
+    } else if (event.type === "response.event" && this.sessionStarted && !this.ending) {
+      // Lifecycle events can arrive before the phone's audio warm-up completes.
+      // Preserve their order, but allow no vault tool execution until active.
+      if (this.active) this.handleBackendEvent(event);
+      else if (["response.created", "response.output_item.done", "response.completed", "response.failed", "response.cancelled", "response.incomplete"].includes(event.event?.type)) {
+        if (this.pendingBackendEvents.length >= 256) this.fail('Too much assistant work arrived before the microphone was ready. Start a new conversation.');
+        else this.pendingBackendEvents.push(event);
+      }
     }
   }
 
@@ -183,7 +208,12 @@ export class VaultLiveSession {
         if (Date.now() - this.audioStableSince >= (Platform.isMobile ? 3500 : 200)) {
           this.ready = true;
           clearTimeout(this.timer);
+          this.connectedAt = Date.now();
+          const pending = this.pendingBackendEvents;
+          this.pendingBackendEvents = [];
+          for (const event of pending) this.handleBackendEvent(event);
           this.callbacks.state("connected", this.playbackBlocked ? "Ready — start speaking. Press play below to hear replies." : "Ready — start speaking");
+          void this.checkInput();
           return;
         }
       } else {
@@ -194,6 +224,45 @@ export class VaultLiveSession {
       this.audioStableSince = 0;
     }
     this.readinessTimer = setTimeout(() => void this.checkAudioReady(), 200);
+  }
+
+  private handleBackendEvent(event: Record<string, any>): void {
+    void this.loop.handle(event).catch(() => this.fail("Could not finish a voice note request. Check the dashboard before trying the change again."));
+  }
+
+  private setInputStatus(message: string): void {
+    if (message === this.lastInputStatus) return;
+    this.lastInputStatus = message;
+    this.callbacks.inputStatus?.(message);
+  }
+
+  /** Local numeric WebRTC levels only; never record, persist or transmit diagnostics. */
+  private async checkInput(): Promise<void> {
+    clearTimeout(this.inputTimer);
+    if (!this.active) return;
+    const track = this.microphone?.getAudioTracks()[0];
+    let message: string;
+    if (!track || track.readyState !== 'live' || track.muted) message = 'The phone microphone is not providing audio. Check microphone permission and the Bluetooth route.';
+    else if (!track.enabled) message = 'Microphone muted.';
+    else if (this.inputRecognized) message = 'Speech recognized by OpenAI.';
+    else {
+      let level: number | undefined;
+      try {
+        const stats = await this.peer?.getStats();
+        stats?.forEach(report => {
+          if (report.type === 'media-source' && report.kind === 'audio' && typeof report.audioLevel === 'number') level = Math.max(level ?? 0, report.audioLevel);
+        });
+      } catch { /* Level reporting is optional on mobile WebRTC implementations. */ }
+      if (!this.active) return;
+      if (level !== undefined && level > 0.01) message = 'Microphone sound detected — waiting for recognized speech.';
+      else if (Date.now() - this.connectedAt >= 10000) message = level === undefined
+        ? 'No speech recognized yet. This phone does not report input levels; check microphone permission and the Bluetooth route.'
+        : 'No speech recognized and the microphone is quiet. Check microphone permission and the Bluetooth route.';
+      else message = 'Microphone on — waiting for recognized speech.';
+    }
+    if (!this.active) return;
+    this.setInputStatus(message);
+    this.inputTimer = setTimeout(() => void this.checkInput(), 500);
   }
 
   private send(event: Record<string, unknown>): void {

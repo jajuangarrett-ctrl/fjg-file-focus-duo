@@ -2,30 +2,121 @@
 const assert = require('node:assert/strict');
 const esbuild = require('esbuild');
 const vm = require('node:vm');
-(async()=>{
-const built = (await esbuild.build({entryPoints:['src/live/session.ts'],bundle:true,write:false,platform:'node',format:'cjs',plugins:[{
-  name:'mock-obsidian', setup(build){build.onResolve({filter:/^obsidian$/},()=>({path:'obsidian',namespace:'mock'}));build.onLoad({filter:/.*/,namespace:'mock'},()=>({contents:'export const Platform={isMobile:false}; export const requestUrl=(...args)=>globalThis.voiceRequest(...args);',loader:'js'}));}
-}]})).outputFiles[0].text;
+(async () => {
+  const built = (await esbuild.build({
+    entryPoints: ['src/live/session.ts'], bundle: true, write: false, platform: 'node', format: 'cjs',
+    plugins: [{name: 'mock-obsidian', setup(build) {
+      build.onResolve({filter: /^obsidian$/}, () => ({path: 'obsidian', namespace: 'mock'}));
+      build.onLoad({filter: /.*/, namespace: 'mock'}, () => ({
+        contents: 'export const Platform={isMobile:globalThis.mobile}; export const requestUrl=(...args)=>globalThis.voiceRequest(...args);', loader: 'js'
+      }));
+    }}]
+  })).outputFiles[0].text;
+  const settle = () => new Promise(resolve => setImmediate(resolve));
+  function fixture({mobile = true, denied = false, response = {status: 201, json: {transport: {sdp: 'synthetic-answer'}}}} = {}) {
+    let now = 10000, peer, micCalls = 0, apiCalls = 0, timerId = 0;
+    let stats = () => new Map([['audio', {type: 'outbound-rtp', kind: 'audio', bytesSent: now}]]);
+    const timers = new Map(), states = [], inputs = [], transcripts = [], executed = [];
+    const track = {enabled: true, muted: false, readyState: 'live', stop() {this.readyState = 'ended';}};
+    class Channel extends EventTarget {
+      readyState = 'open'; sent = [];
+      send(value) {this.sent.push(JSON.parse(value));}
+      close() {this.readyState = 'closed';}
+      event(value) {this.dispatchEvent(Object.assign(new Event('message'), {data: JSON.stringify(value)}));}
+    }
+    class Peer extends EventTarget {
+      connectionState = 'connected'; iceGatheringState = 'complete'; localDescription = {sdp: 'synthetic-offer'};
+      channel = new Channel(); closed = false;
+      constructor() {super(); peer = this;}
+      addTrack() {} createDataChannel() {return this.channel;} async createOffer() {return this.localDescription;}
+      async setLocalDescription() {} async setRemoteDescription(value) {this.answer = value;}
+      async getStats() {return stats();} close() {this.closed = true;}
+    }
+    const context = {module: {exports: {}}, require, Error, Event, EventTarget, mobile,
+      setTimeout(fn) {const id = ++timerId; timers.set(id, fn); return id;}, clearTimeout(id) {timers.delete(id);},
+      Date: class extends Date {static now() {return now;}}, crypto: require('node:crypto').webcrypto,
+      navigator: {mediaDevices: {getUserMedia: async () => {
+        micCalls++; if (denied) throw Object.assign(new Error('denied'), {name: 'NotAllowedError'});
+        return {getTracks: () => [track], getAudioTracks: () => [track]};
+      }}}, RTCPeerConnection: Peer, voiceRequest: async () => {apiCalls++; return response;}
+    };
+    vm.runInNewContext(built, context);
+    const session = new context.module.exports.VaultLiveSession({pause() {}, srcObject: null}, {
+      state: (state, message) => states.push({state, message}),
+      inputStatus: message => inputs.push(message), transcript: (speaker, text) => transcripts.push({speaker, text}),
+      execute: async (name, args, id) => {assert.equal(session.active, true, 'tools must wait for readiness'); executed.push({name, args, id}); return {fixture: true};}
+    });
+    return {session, track, states, inputs, transcripts, executed, timers,
+      get peer() {return peer;}, get micCalls() {return micCalls;}, get apiCalls() {return apiCalls;},
+      advance: ms => {now += ms;}, setStats: next => {stats = next;},
+      start: () => session.start('fixture-only', 'fixture-model', '{}'),
+      event: event => peer.channel.event(event),
+      started: async () => {peer.channel.event({type: 'session.started'}); await settle();},
+      ready: async () => {now += mobile ? 4000 : 500; await session.checkAudioReady(); await settle();}
+    };
+  }
+  const envelope = (event, delegation = 'fixture-delegation') => ({type: 'response.event', delegation_id: delegation, event});
+  const created = id => envelope({type: 'response.created', response: {id}});
+  const item = (id, call = 'fixture-call') => envelope({type: 'response.output_item.done', response_id: id, item: {type: 'function_call', call_id: call, name: 'search_vault', arguments: '{"query":"synthetic"}'}});
+  const completed = id => envelope({type: 'response.completed', response: {id}});
+  let passed = 0;
+  async function check(name, run) {await run(); passed++; console.log(`PASS: ${name}`);}
 
-let requestCount=0, micCount=0, reply, permissionDenied=false, peer, now=10000;
-const track={enabled:true,muted:false,readyState:'live',stop(){this.readyState='ended';}};
-class Channel extends EventTarget {readyState='open'; sent=[];send(value){this.sent.push(JSON.parse(value));}close(){this.readyState='closed';}event(value){this.dispatchEvent(Object.assign(new Event('message'),{data:JSON.stringify(value)}));}}
-class Peer extends EventTarget {
-  connectionState='connected'; iceGatheringState='complete'; localDescription={sdp:'synthetic-offer'}; channel=new Channel(); closed=false;
-  constructor(){super();peer=this;}addTrack(){}createDataChannel(){return this.channel;}async createOffer(){return this.localDescription;}async setLocalDescription(){}async setRemoteDescription(value){this.answer=value;}
-  async getStats(){return new Map([['audio',{type:'outbound-rtp',kind:'audio',bytesSent:now}]]);}close(){this.closed=true;}
-}
-const context={module:{exports:{}},require,Error,Event,EventTarget,setTimeout,clearTimeout,Date:class extends Date{static now(){return now;}},crypto:require('node:crypto').webcrypto,
- navigator:{mediaDevices:{getUserMedia:async()=>{micCount++;if(permissionDenied)throw Object.assign(new Error('denied'),{name:'NotAllowedError'});return {getTracks:()=>[track],getAudioTracks:()=>[track]};}}},
- RTCPeerConnection:Peer,voiceRequest:async()=>{requestCount++;return reply;}};
-vm.runInNewContext(built,context);
-const {VaultLiveSession}=context.module.exports;
-let states=[]; const audio={pause(){},srcObject:null};
-const make=()=>{track.readyState='live';states=[];return new VaultLiveSession(audio,{state:(state,message)=>states.push({state,message}),transcript(){},execute:async()=>({})});};
-let session=make();await session.start('', 'fixture-model','{}');assert.equal(micCount,0);assert.equal(requestCount,0);assert.match(states.at(-1).message,/No saved voice key/);
-permissionDenied=true;session=make();await session.start('fixture-only','fixture-model','{}');assert.equal(requestCount,0);assert.match(states.at(-1).message,/Microphone access was denied/);assert.ok(peer.closed);
-permissionDenied=false;reply={status:401,get json(){throw Error('private-provider-body');}};session=make();await session.start('fixture-only','fixture-model','{}');assert.match(states.at(-1).message,/HTTP 401/);assert.match(states.at(-1).message,/rejected the API key/);assert.equal(track.readyState,'ended');assert.ok(peer.closed);assert.ok(!states.at(-1).message.includes('private-provider-body'));
-reply={status:201,json:{transport:{sdp:'synthetic-answer'}}};session=make();await session.start('fixture-only','fixture-model','{}');assert.equal(peer.answer.sdp,'synthetic-answer');peer.channel.event({type:'session.started'});await new Promise(resolve=>setImmediate(resolve));now+=500;await session.checkAudioReady();assert.equal(session.active,true);assert.equal(states.at(-1).state,'connected');
-peer.channel.event({type:'response.event',event:{type:'response.failed',response:{error:{code:'model_not_found',message:'private-provider-body'}}}});assert.equal(states.at(-1).state,'error');assert.match(states.at(-1).message,/backend model/);assert.ok(!states.at(-1).message.includes('private-provider-body'));assert.equal(track.readyState,'ended');assert.equal(session.active,false);
-console.log('PASS: missing key, microphone denial, non-JSON HTTP failure, connected audio readiness, backend model failure and cleanup (synthetic only).');
-})().catch(error=>{console.error(error);process.exitCode=1;});
+  await check('missing key and denied microphone never call the API', async () => {
+    const missing = fixture(); await missing.session.start('', 'fixture-model', '{}');
+    assert.equal(missing.micCalls, 0); assert.equal(missing.apiCalls, 0); assert.match(missing.states.at(-1).message, /No saved voice key/);
+    const denied = fixture({denied: true}); await denied.start();
+    assert.equal(denied.apiCalls, 0); assert.match(denied.states.at(-1).message, /Microphone access was denied/); assert.ok(denied.peer.closed);
+  });
+  await check('non-JSON HTTP errors are actionable and release the microphone', async () => {
+    const f = fixture({response: {status: 401, get json() {throw Error('private-provider-body');}}}); await f.start();
+    assert.match(f.states.at(-1).message, /HTTP 401.*rejected the API key/); assert.equal(f.track.readyState, 'ended'); assert.ok(f.peer.closed);
+    assert.ok(!f.states.at(-1).message.includes('private-provider-body')); assert.equal(f.timers.size, 0);
+  });
+  await check('complete mobile warm-up response waits, then executes once in order', async () => {
+    const f = fixture(); await f.start(); await f.started();
+    f.event(created('early')); f.event(item('early')); f.event(completed('early')); await settle();
+    assert.equal(f.executed.length, 0); assert.equal(f.session.active, false);
+    await f.ready(); assert.equal(f.session.active, true); assert.equal(f.executed.length, 1);
+    assert.deepEqual(f.peer.channel.sent.map(e => e.type), ['response.item.create', 'response.create']);
+    f.event(completed('early')); await settle(); assert.equal(f.executed.length, 1);
+    f.session.dispose(); assert.equal(f.timers.size, 0);
+  });
+  await check('response begun during warm-up can complete after readiness', async () => {
+    const f = fixture(); await f.start(); await f.started(); f.event(created('crossing')); f.event(item('crossing'));
+    await f.ready(); assert.equal(f.executed.length, 0); f.event(completed('crossing')); await settle();
+    assert.equal(f.executed.length, 1); f.session.dispose();
+  });
+  await check('ending during warm-up discards queued work and stops microphone', async () => {
+    const f = fixture(); await f.start(); await f.started(); f.event(created('cancelled')); f.event(item('cancelled')); f.event(completed('cancelled'));
+    f.session.end(); await f.ready(); f.event({type: 'session.closed'}); await settle();
+    assert.equal(f.executed.length, 0); assert.equal(f.track.readyState, 'ended'); assert.equal(f.session.active, false); assert.equal(f.timers.size, 0);
+  });
+  await check('backend failure during warm-up terminates safely without private error text', async () => {
+    const f = fixture(); await f.start(); await f.started();
+    f.event(envelope({type: 'response.failed', response: {error: {code: 'model_not_found', message: 'private-provider-body'}}}));
+    assert.equal(f.states.at(-1).state, 'error'); assert.match(f.states.at(-1).message, /backend model/);
+    assert.ok(!f.states.at(-1).message.includes('private-provider-body')); assert.equal(f.track.readyState, 'ended'); assert.equal(f.timers.size, 0);
+  });
+  await check('input feedback distinguishes local sound, quiet, unsupported levels, mute and recognized speech', async () => {
+    const f = fixture(); await f.start(); await f.started(); await f.ready();
+    f.setStats(() => new Map([['source', {type: 'media-source', kind: 'audio', audioLevel: 0.2}]]));
+    await f.session.checkInput(); assert.match(f.inputs.at(-1), /sound detected/);
+    f.advance(11000); f.setStats(() => new Map([['source', {type: 'media-source', kind: 'audio', audioLevel: 0}]]));
+    await f.session.checkInput(); assert.match(f.inputs.at(-1), /microphone is quiet/);
+    f.setStats(() => new Map()); await f.session.checkInput(); assert.match(f.inputs.at(-1), /does not report input levels/);
+    f.session.mute(true); await f.session.checkInput(); assert.equal(f.inputs.at(-1), 'Microphone muted.');
+    f.session.mute(false); f.track.muted = true; await f.session.checkInput(); assert.match(f.inputs.at(-1), /not providing audio/);
+    f.track.muted = false; f.event({type: 'session.input_transcript.delta', delta: 'Synthetic words'});
+    await f.session.checkInput(); assert.equal(f.inputs.at(-1), 'Speech recognized by OpenAI.');
+    assert.equal(f.transcripts.length, 1); assert.ok(!f.inputs.join(' ').includes('Synthetic words'));
+    f.session.dispose(); assert.equal(f.timers.size, 0); assert.equal(f.inputs.at(-1), 'Microphone off.');
+  });
+  await check('queued warm-up events are bounded and never execute after overflow', async () => {
+    const f = fixture(); await f.start(); await f.started();
+    for (let i = 0; i < 257; i++) f.event(created('overflow-' + i));
+    assert.equal(f.states.at(-1).state, 'error'); assert.match(f.states.at(-1).message, /before the microphone was ready/);
+    await f.ready(); assert.equal(f.executed.length, 0); assert.equal(f.timers.size, 0);
+  });
+  console.log(`${passed} synthetic voice scenarios passed. No actual microphone, keys, vault content or network used.`);
+})().catch(error => {console.error(error); process.exitCode = 1;});

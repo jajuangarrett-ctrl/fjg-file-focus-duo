@@ -123,6 +123,10 @@ export function AdaptiveNavigator({plugin, fileTreeView}: {plugin: FileTreeAlter
         const action = fileActions.current.find(item => item.id === id);
         if (action) run(action, event); else new Notice('The navigator is still loading. Try again shortly.');
     };
+    const folderAction = (id: string, event?: any) => {
+        const action = folderActions.current.find(item => item.id === id);
+        if (action) run(action, event); else new Notice('The navigator is still loading. Try again shortly.');
+    };
     const overflow = (event: React.MouseEvent) => {
         const menu = new Menu();
         const add = (title: string, action: () => unknown) => menu.addItem(item => item.setTitle(title).onClick(() => run({id:title,title,run:action},event)));
@@ -169,6 +173,8 @@ export function AdaptiveNavigator({plugin, fileTreeView}: {plugin: FileTreeAlter
             <span className="duo-breadcrumb"><span className="duo-crumb-first">{crumb.first}</span>{crumb.last && <><span className="duo-crumb-middle"> / {crumb.collapsed ? '… / ' : ''}</span><span className="duo-crumb-last">{crumb.last}</span></>}</span>
         </button>
         <div className="duo-icon-row">
+        <button data-ignore-swipe="true" aria-label="Open Vault Control Center" title="Vault Control Center" onClick={e => folderAction('home',e)}><Icons.FaHome aria-hidden="true"/></button>
+        <button data-ignore-swipe="true" aria-label="Open FJG Objective Manager" title="FJG Objective Manager" onClick={e => folderAction('tasks',e)}><Icons.LuListChecks aria-hidden="true"/></button>
         <button data-ignore-swipe="true" aria-label="Search" title="Search" onClick={e => { setShortcuts(false); if(focusMode) window.dispatchEvent(new Event(FOCUS_SEARCH)); else { if(atRoot) setRootFilesVisible(true); fileAction('search',e); } }}><Icons.IoIosSearch/></button>
         <button data-ignore-swipe="true" aria-label="New note" title="New note" onClick={e => fileAction('new-note',e)}><Icons.IoIosAddCircle/></button>
         <button data-ignore-swipe="true" aria-label="Recent" title="Recent" aria-pressed={view==='recent'} onClick={() => {setShortcuts(false);setView('recent');}}><Icons.FaHistory/></button>
