@@ -1,3 +1,11 @@
+## Toolbar Omnisearch — 0.1.11
+
+The top-row magnifying-glass button now opens Omnisearch’s vault search from Folders, Shortcuts, Recent and Bookmarks without changing the current view or folder. Its tooltip and accessibility label are **Open Omnisearch**. If Omnisearch is unavailable, the button explains how to enable it rather than falling back to a different search.
+
+The separate **Search files by name or tag** action remains in All File Focus buttons, and the Shortcuts **Find a button** filter is unchanged.
+
+Validation: `npm run typecheck`, `npm test`, `npm run build`, `npm run test:browser:build`, and `node tests/browser/omnisearch-toolbar.cjs`. Synthetic UI tests cover enabled, missing, refused and throwing commands, repeated open/dismiss, and view/filter preservation at phone and desktop widths. Physical-phone verification remains separate.
+
 ## Layout and voice startup — 0.1.10
 
 The mobile Shortcuts header is now one compact context row with a **Find a button** toggle. Search and the selected folder remain available; the repeated explanatory paragraph is omitted from the sidebar. Shortcut buttons use two columns when the pane is wide enough. Vault Control Center and FJG Objective Manager are now in the upper toolbar, using their existing commands. All eight toolbar controls keep 44px touch targets and wrap within narrow panes.

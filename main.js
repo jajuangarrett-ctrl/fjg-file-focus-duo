@@ -3442,10 +3442,12 @@ function MainFolder(props) {
         var _a;
         const commands = plugin.app.commands;
         if (!((_a = commands === null || commands === void 0 ? void 0 : commands.commands) === null || _a === void 0 ? void 0 : _a[OMNISEARCH_COMMAND_ID]) || !(commands === null || commands === void 0 ? void 0 : commands.executeCommandById)) {
-            new obsidian.Notice('Omnisearch command is not available.');
+            new obsidian.Notice('Omnisearch is not available. Enable or install the Omnisearch plugin to use this search button.');
             return;
         }
-        commands.executeCommandById(OMNISEARCH_COMMAND_ID);
+        if (!commands.executeCommandById(OMNISEARCH_COMMAND_ID)) {
+            new obsidian.Notice('Omnisearch could not open. Check that the Omnisearch plugin is enabled and try again.');
+        }
     };
     const copySelectedVaultFolderPath = () => __awaiter(this, void 0, void 0, function* () {
         var _b, _c;
@@ -5099,14 +5101,8 @@ function AdaptiveNavigator({ plugin, fileTreeView }) {
                 React.createElement(FaHome, { "aria-hidden": "true" })),
             React.createElement("button", { "data-ignore-swipe": "true", "aria-label": "Open FJG Objective Manager", title: "FJG Objective Manager", onClick: e => folderAction('tasks', e) },
                 React.createElement(LuListChecks, { "aria-hidden": "true" })),
-            React.createElement("button", { "data-ignore-swipe": "true", "aria-label": "Search", title: "Search", onClick: e => { setShortcuts(false); if (focusMode)
-                    window.dispatchEvent(new Event(FOCUS_SEARCH));
-                else {
-                    if (atRoot)
-                        setRootFilesVisible(true);
-                    fileAction('search', e);
-                } } },
-                React.createElement(IoIosSearch, null)),
+            React.createElement("button", { "data-ignore-swipe": "true", "aria-label": "Open Omnisearch", title: "Open Omnisearch", onClick: e => folderAction('omnisearch', e) },
+                React.createElement(IoIosSearch, { "aria-hidden": "true" })),
             React.createElement("button", { "data-ignore-swipe": "true", "aria-label": "New note", title: "New note", onClick: e => fileAction('new-note', e) },
                 React.createElement(IoIosAddCircle, null)),
             React.createElement("button", { "data-ignore-swipe": "true", "aria-label": "Recent", title: "Recent", "aria-pressed": view$1 === 'recent', onClick: () => { setShortcuts(false); setView('recent'); } },

@@ -175,7 +175,7 @@ export function AdaptiveNavigator({plugin, fileTreeView}: {plugin: FileTreeAlter
         <div className="duo-icon-row">
         <button data-ignore-swipe="true" aria-label="Open Vault Control Center" title="Vault Control Center" onClick={e => folderAction('home',e)}><Icons.FaHome aria-hidden="true"/></button>
         <button data-ignore-swipe="true" aria-label="Open FJG Objective Manager" title="FJG Objective Manager" onClick={e => folderAction('tasks',e)}><Icons.LuListChecks aria-hidden="true"/></button>
-        <button data-ignore-swipe="true" aria-label="Search" title="Search" onClick={e => { setShortcuts(false); if(focusMode) window.dispatchEvent(new Event(FOCUS_SEARCH)); else { if(atRoot) setRootFilesVisible(true); fileAction('search',e); } }}><Icons.IoIosSearch/></button>
+        <button data-ignore-swipe="true" aria-label="Open Omnisearch" title="Open Omnisearch" onClick={e => folderAction('omnisearch',e)}><Icons.IoIosSearch aria-hidden="true"/></button>
         <button data-ignore-swipe="true" aria-label="New note" title="New note" onClick={e => fileAction('new-note',e)}><Icons.IoIosAddCircle/></button>
         <button data-ignore-swipe="true" aria-label="Recent" title="Recent" aria-pressed={view==='recent'} onClick={() => {setShortcuts(false);setView('recent');}}><Icons.FaHistory/></button>
         <button data-ignore-swipe="true" aria-label="Bookmarks" title="Bookmarks" aria-pressed={view==='bookmarks'} onClick={() => {setShortcuts(false);setView('bookmarks');}}><Icons.FaRegBookmark/></button>

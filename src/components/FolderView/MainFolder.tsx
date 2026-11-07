@@ -282,11 +282,13 @@ export function MainFolder(props: FolderProps) {
         const commands = (plugin.app as any).commands;
 
         if (!commands?.commands?.[OMNISEARCH_COMMAND_ID] || !commands?.executeCommandById) {
-            new Notice('Omnisearch command is not available.');
+            new Notice('Omnisearch is not available. Enable or install the Omnisearch plugin to use this search button.');
             return;
         }
 
-        commands.executeCommandById(OMNISEARCH_COMMAND_ID);
+        if (!commands.executeCommandById(OMNISEARCH_COMMAND_ID)) {
+            new Notice('Omnisearch could not open. Check that the Omnisearch plugin is enabled and try again.');
+        }
     };
 
     const copySelectedVaultFolderPath = async () => {
