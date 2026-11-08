@@ -28,6 +28,7 @@ export class VaultLiveSession {
   private textOnly = false;
   private audioContext?: AudioContext;
   private silentSource?: OscillatorNode;
+  private silentStream?: MediaStream;
   private sender?: RTCRtpSender;
   private backendResponses = new Set<string>();
   private pendingResponses = 0;
@@ -93,6 +94,7 @@ export class VaultLiveSession {
     if (!Audio) throw new Error('Text with spoken replies is not supported on this device.');
     const context: AudioContext = this.audioContext = new Audio();
     const destination = context.createMediaStreamDestination();
+    this.silentStream = destination.stream;
     const source = this.silentSource = context.createOscillator();
     const gain = context.createGain(); gain.gain.value = 0;
     source.connect(gain); gain.connect(destination); source.start();
@@ -209,6 +211,7 @@ export class VaultLiveSession {
     clearTimeout(this.inputTimer);
     this.microphone?.getTracks().forEach((track) => track.stop());
     this.silentSource?.stop(); this.silentSource = undefined;
+    this.silentStream?.getTracks().forEach(track => track.stop()); this.silentStream = undefined;
     void this.audioContext?.close().catch(() => {}); this.audioContext = undefined;
     this.backendResponses.clear(); this.pendingResponses = 0; this.updateBusy();
     this.channel?.close();

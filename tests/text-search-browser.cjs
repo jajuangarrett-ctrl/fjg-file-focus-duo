@@ -19,7 +19,7 @@ export class Modal {
   const setup = `
 import {VaultVoiceModal} from './src/live/modal';
 import {TFile} from 'obsidian';
-window.apiCalls=0;window.micCalls=0;window.keyCalls=0;window.opened=[];window.notices=[];window.reads=0;window.responseDelay=10;
+let eventId=0;crypto.randomUUID=()=>String(++eventId);window.apiCalls=0;window.micCalls=0;window.keyCalls=0;window.opened=[];window.notices=[];window.reads=0;window.responseDelay=10;
 const stream=()=>{const track={readyState:'live',enabled:true,muted:false,stop(){this.readyState='ended';}};return {getTracks:()=>[track],getAudioTracks:()=>[track]};};
 Object.defineProperty(navigator,'mediaDevices',{value:{getUserMedia:async()=>{window.micCalls++;return stream();}}});
 window.AudioContext=class {state='suspended';createMediaStreamDestination(){return {stream:stream()};}createOscillator(){return {connect(){},start(){},stop(){}};}createGain(){return {gain:{value:1},connect(){}};}async resume(){this.state='running';}async close(){this.state='closed';}};
