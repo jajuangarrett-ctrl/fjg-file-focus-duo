@@ -66,10 +66,7 @@ export class VaultVoiceModal extends Modal {
   }
   private openTextSearch(): void {
     if (this.closed || this.textSearchModal) return;
-    this.textSearchModal = new VaultTextSearchModal(this.app, {
-      files: () => this.app.vault.getFiles().map(file => ({ path: file.path, size: file.stat.size })),
-      read: path => this.app.vault.read(this.file(path))
-    }, async path => {
+    this.textSearchModal = new VaultTextSearchModal(this.app, this.plugin, this.voiceSelection, async path => {
       if (this.closed) return;
       await this.showNote(path); this.addSource(path);
       if (this.session?.active) this.session.selectedNote(path);
