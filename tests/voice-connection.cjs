@@ -154,7 +154,7 @@ const vm = require('node:vm');
   await check('microphone switches on only by explicit action and keeps the same conversation', async () => {
     const f=fixture(); await f.start(true); await f.started(); const peer=f.peer;
     await f.session.enableMicrophone(); assert.equal(f.micCalls,1); assert.equal(f.apiCalls,1);
-    assert.match(f.states.at(-1).message,/Warming up microphone/); await f.ready(); assert.match(f.states.at(-1).message,/Ready/);
+    assert.match(f.states.at(-1).message,/Warming up microphone/); await settle(); await f.ready(); assert.match(f.states.at(-1).message,/Ready/);
     assert.equal(f.peer,peer); assert.equal(f.session.isTextOnly,false); assert.equal(f.silentTrack.readyState,'ended'); assert.equal(f.audioContext.state,'closed');
     f.session.sendText('Typed while voice is on'); assert.equal(f.micCalls,1); f.session.dispose();
     const denied=fixture({denied:true}); await denied.start(true); await denied.started(); await denied.session.enableMicrophone();
