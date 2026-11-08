@@ -3,6 +3,7 @@ import type FileTreeAlternativePlugin from '../main';
 import { VaultLiveSession, type LiveState } from './session';
 import { VaultLiveTools, type VaultPort } from './vault-tools';
 import { VaultSearchResultsModal } from './search-results';
+import { VaultTextSearchModal } from './text-search-modal';
 
 export class VaultVoiceModal extends Modal {
   private session?: VaultLiveSession;
@@ -21,6 +22,7 @@ export class VaultVoiceModal extends Modal {
   private expandButton!: HTMLButtonElement;
   private sourcePaths = new Set<string>();
   private resultsModal?: VaultSearchResultsModal;
+  private textSearchModal?: VaultTextSearchModal;
   private lastSpeaker = '';
   private lastText?: HTMLElement;
   private plugin: FileTreeAlternativePlugin;
@@ -52,6 +54,8 @@ export class VaultVoiceModal extends Modal {
     });
     this.endButton = controls.createEl('button', { text: 'End conversation' });
     this.endButton.disabled = true; this.endButton.addEventListener('click', () => this.session?.end());
+    const textSearchButton = controls.createEl('button', { text: 'Type a search', attr: { 'aria-label': 'Type a search of the entire vault' } });
+    textSearchButton.addEventListener('click', () => this.openTextSearch());
     this.expandButton = controls.createEl('button', { text: 'Expand conversation', cls: 'fjgduo-vault-live-expand' });
     this.expandButton.addEventListener('click', () => this.setCompact(false));
     this.audio = root.createEl('audio', { attr: { controls: '', autoplay: '', 'aria-label': 'Assistant voice playback' } });
@@ -59,6 +63,18 @@ export class VaultVoiceModal extends Modal {
     this.transcript.createEl('p', { cls: 'fjgduo-vault-live-caption', text: 'Try: “Find my notes about summer planning” or “Add this thought to my meeting note.”' });
     this.sources = root.createDiv({ cls: 'fjgduo-vault-live-sources', attr: { 'aria-label': 'Source notes' } });
     this.saved = root.createDiv({ cls: 'fjgduo-vault-live-saved', attr: { role: 'log', 'aria-label': 'Saved changes', 'aria-live': 'polite' } });
+  }
+  private openTextSearch(): void {
+    if (this.closed || this.textSearchModal) return;
+    this.textSearchModal = new VaultTextSearchModal(this.app, {
+      files: () => this.app.vault.getFiles().map(file => ({ path: file.path, size: file.stat.size })),
+      read: path => this.app.vault.read(this.file(path))
+    }, async path => {
+      if (this.closed) return;
+      await this.showNote(path); this.addSource(path);
+      if (this.session?.active) this.session.selectedNote(path);
+    }, () => { this.textSearchModal = undefined; });
+    this.textSearchModal.open();
   }
   private startLabel(): string {
     return this.plugin.settings.liveApiKey?.trim() ? 'Agree and start conversation' : 'Use Objective Manager key and start';
@@ -113,7 +129,7 @@ export class VaultVoiceModal extends Modal {
       await session.start(key, this.plugin.settings.liveBackendModel, context);
     } catch { session.dispose(); this.setState('error', 'Could not read the saved key. Check the Vault voice API key in File Focus Duo settings; no connection was made.'); }
   }
-  onClose(): void { this.closed = true; this.resultsModal?.close(); this.session?.end(); this.release(); }
+  onClose(): void { this.closed = true; this.textSearchModal?.close(); this.resultsModal?.close(); this.session?.end(); this.release(); }
   shutdown(): void { this.session?.end(); this.session?.dispose(); this.close(); }
   private setState(state: LiveState, message: string): void {
     if (this.closed) return;

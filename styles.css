@@ -1114,3 +1114,13 @@ body.is-mobile .workspace-drawer.mod-left:has(.workspace-leaf.mod-active .duo-na
 .fjgduo-modal-input { width:100%; min-height:44px; margin-bottom:15px; }
 
 .duo-navigator .duo-back .duo-crumb-middle { white-space:pre; }
+
+/* Local typed search shares the voice entry point without starting a session. */
+.fjgduo-vault-text-search-modal { width:min(680px,94vw); max-height:90dvh; }
+.fjgduo-vault-text-search-modal .modal-content { overflow-y:auto; }
+.fjgduo-vault-text-search-form { display:flex; flex-wrap:wrap; align-items:end; gap:12px; }
+.fjgduo-vault-text-search-form label { display:flex; flex:1 1 210px; min-width:0; flex-direction:column; gap:6px; }
+.fjgduo-vault-text-search-form :is(input,select,button) { width:100%; min-width:0; min-height:44px; font-size:16px; }
+.fjgduo-vault-text-search-form button { flex:0 1 150px; white-space:normal; height:auto; }
+.fjgduo-vault-text-search-results > button { min-height:44px; }
+.fjgduo-vault-text-search-results .fjgduo-vault-search-list { max-height:none; }
