@@ -157,40 +157,26 @@ export class VaultLiveTools {
     this.notice(path, 'Saved'); this.source(path);
     return { saved: true, path, revision: await noteRevision(saved) };
   }
-  private async search(args: Record<string, unknown>): Promise<VaultSearchResult> {
-    const result = await searchVaultLocally(this.port, args, () => this.check());
-    this.results(result, { query: field(args, 'query', 300).trim().toLocaleLowerCase(),
-      folder: field(args, 'folder', 1000).replace(/\/$/, ''), mode: field(args, 'mode', 30), offset: page(args) });
-    return result;
-  }
-}
-
-/** Read-only retrieval shared by voice and typed search. No API or microphone access. */
-export async function searchVaultLocally(
-  port: Pick<VaultPort, 'files' | 'read'>,
-  args: Record<string, unknown>,
-  check: () => void = () => {}
-): Promise<VaultSearchResult> {
-  check();
+  private async search(args: Record<string, unknown>): Promise<unknown> {
     const query = field(args, 'query', 300).trim().toLocaleLowerCase();
     const folderInput = field(args, 'folder', 1000).replace(/\/$/, '');
     const folder = folderInput ? vaultPath(folderInput) : '';
     const mode = field(args, 'mode', 30); const offset = page(args);
     if (mode !== 'filenames' && mode !== 'contents') throw new Error('Invalid search mode.');
-    const scoped = port.files().filter(file => !folder || file.path.startsWith(folder + '/'));
+    const scoped = this.port.files().filter(file => !folder || file.path.startsWith(folder + '/'));
     const files = scoped.filter(file => canRead(file.path) && (mode === 'filenames' || canReadText(file.path)));
     const ranked: Array<{ path: string; excerpt?: string; size: number; score: number }> = [];
     let skipped = 0, scanned = 0;
     // Cover the entire eligible scope before ranking/paging matches. Small batches keep UI responsive.
     for (let index = 0; index < files.length; index += 8) {
-      check();
+      this.check();
       await Promise.all(files.slice(index, index + 8).map(async file => {
-        check(); let content = '';
+        this.check(); let content = '';
         if (mode === 'contents') {
           if (file.size > 512000) { skipped++; return; }
-          try { content = await port.read(file.path); } catch { skipped++; return; }
+          try { content = await this.port.read(file.path); } catch { skipped++; return; }
         }
-        check(); scanned++;
+        this.check(); scanned++;
         const score = searchScore(query, file.path, content);
         if (score > 0) {
           const terms = query.toLocaleLowerCase().split(/\s+/).filter(Boolean);
@@ -207,8 +193,9 @@ export async function searchVaultLocally(
     const result = { matches, next_offset: offset + 20 < ranked.length ? offset + 20 : null,
       search_complete: skipped === 0, candidate_files: files.length, scanned_files: scanned,
       total_matches: ranked.length, excluded_files: excluded, skipped_this_page: skipped, coverage };
-    check();
+    this.check(); this.results(result, { query, folder, mode, offset });
     return result;
+  }
 }
 
 /** Ranked keyword retrieval, not semantic/vector search. */
