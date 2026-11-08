@@ -1114,3 +1114,12 @@ body.is-mobile .workspace-drawer.mod-left:has(.workspace-leaf.mod-active .duo-na
 .fjgduo-modal-input { width:100%; min-height:44px; margin-bottom:15px; }
 
 .duo-navigator .duo-back .duo-crumb-middle { white-space:pre; }
+
+/* Typed turns use the existing live conversation and retain its spoken output. */
+.fjgduo-vault-live-composer { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0; }
+.fjgduo-vault-live-composer[hidden] { display:none; }
+.fjgduo-vault-live-composer label { display:flex; flex:1 1 100%; min-width:0; flex-direction:column; gap:6px; }
+.fjgduo-vault-live-composer textarea { width:100%; min-width:0; min-height:88px; resize:vertical; font-size:16px; }
+.fjgduo-vault-live-composer button { min-height:44px; }
+.fjgduo-vault-live-composer p { flex:1 1 100%; margin:0; }
+.fjgduo-vault-live-modal.is-compact .fjgduo-vault-live-composer { max-height:22dvh; overflow:auto; }

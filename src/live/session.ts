@@ -7,6 +7,7 @@ export type LiveState = "idle" | "connecting" | "connected" | "ending" | "ended"
 export interface LiveCallbacks {
   state: (state: LiveState, message: string) => void;
   inputStatus?: (message: string) => void;
+  busy?: (busy: boolean) => void;
   transcript: (speaker: "You" | "Assistant", delta: string) => void;
   execute: (name: string, args: string, id: string) => Promise<unknown>;
 }
@@ -24,6 +25,13 @@ export class VaultLiveSession {
   private channel?: RTCDataChannel;
   private microphone?: MediaStream;
   private ready = false;
+  private textOnly = false;
+  private audioContext?: AudioContext;
+  private silentSource?: OscillatorNode;
+  private sender?: RTCRtpSender;
+  private backendResponses = new Set<string>();
+  private pendingResponses = 0;
+  private backendBusy = false;
   private sessionStarted = false;
   private readinessTimer?: ReturnType<typeof setTimeout>;
   private audioStableSince = 0;
@@ -43,13 +51,67 @@ export class VaultLiveSession {
     this.loop = new LiveToolLoop(callbacks.execute, (event) => this.send(event));
   }
   get active(): boolean { return this.ready && !this.disposed && !this.ending; }
+  get isTextOnly(): boolean { return this.textOnly; }
 
-  async start(apiKey: string, backendModel: string, context: string): Promise<void> {
+  sendText(text: string): void {
+    const message = text.trim();
+    if (!message || message.length > 8000) throw new Error('Enter a message of up to 8,000 characters.');
+    if (!this.active || this.channel?.readyState !== 'open') throw new Error('Wait for the conversation to connect.');
+    if (this.backendBusy) throw new Error('Wait for the current request to finish before sending another.');
+    // Supported Live typed-input protocol: exact user text enters the same backend conversation.
+    this.send({ type: 'session.thinking.append', delegation_id: null, content: 'The user has submitted a typed message to your backend. Treat it like spoken input and speak the resulting answer aloud.' });
+    this.send({ type: 'response.item.create', item: { type: 'message', role: 'user', content: [{ type: 'input_text', text: message }] } });
+    this.send({ type: 'response.create' });
+    this.callbacks.transcript('You', message);
+  }
+
+  async enableMicrophone(): Promise<void> {
+    if (!this.active || !this.textOnly) return;
+    let microphone: MediaStream | undefined;
+    try {
+      microphone = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+      if (!this.active) { microphone.getTracks().forEach(track => track.stop()); return; }
+      const track = microphone.getAudioTracks()[0];
+      if (!track || !this.sender) throw new Error('No microphone track was available.');
+      await this.sender.replaceTrack(track);
+      if (!this.active) { microphone.getTracks().forEach(track => track.stop()); return; }
+      this.microphone?.getTracks().forEach(track => track.stop());
+      this.microphone = microphone; this.textOnly = false;
+      this.silentSource?.stop(); this.silentSource = undefined;
+      void this.audioContext?.close().catch(() => {}); this.audioContext = undefined;
+      this.connectedAt = Date.now(); this.inputRecognized = false;
+      this.callbacks.state('connected', 'Microphone on — you can speak or type.');
+      void this.checkInput();
+    } catch {
+      microphone?.getTracks().forEach(track => track.stop());
+      if (this.active) this.callbacks.state('connected', 'Microphone unavailable. You can keep typing.');
+    }
+  }
+
+  private async silentInput(): Promise<MediaStream> {
+    const Audio = globalThis.AudioContext || (globalThis as any).webkitAudioContext;
+    if (!Audio) throw new Error('Text with spoken replies is not supported on this device.');
+    const context: AudioContext = this.audioContext = new Audio();
+    const destination = context.createMediaStreamDestination();
+    const source = this.silentSource = context.createOscillator();
+    const gain = context.createGain(); gain.gain.value = 0;
+    source.connect(gain); gain.connect(destination); source.start();
+    // Generated silence keeps the Live audio clock moving without recording the user.
+    const resume = context.resume();
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    try { await Promise.race([resume, new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error('Tap Send again to allow audio playback.')), 5000); })]); }
+    finally { clearTimeout(timeout); }
+    if (context.state !== 'running') throw new Error('Tap Send again to allow audio playback.');
+    return destination.stream;
+  }
+
+  async start(apiKey: string, backendModel: string, context: string, textOnly = false): Promise<void> {
     if (this.disposed) return;
-    this.callbacks.state("connecting", "Connecting… Please wait before speaking.");
+    this.textOnly = textOnly;
+    this.callbacks.state("connecting", textOnly ? "Connecting for typed messages… Microphone off." : "Connecting… Please wait before speaking.");
     try {
       if (!apiKey.trim()) throw new Error("No saved voice key was found. Add a key in File Focus Duo settings or save one in Objective Manager before starting.");
-      if (!navigator.mediaDevices?.getUserMedia || typeof RTCPeerConnection === "undefined") throw new Error("Live voice is not supported on this device.");
+      if ((!textOnly && !navigator.mediaDevices?.getUserMedia) || typeof RTCPeerConnection === "undefined") throw new Error("Live voice is not supported on this device.");
       const peer = this.peer = new RTCPeerConnection();
       peer.addEventListener("track", (event) => {
         if (this.disposed || this.ending) return;
@@ -60,10 +122,10 @@ export class VaultLiveSession {
         });
       });
       // Start from the user's click; never automatically reopen a microphone after disconnecting.
-      const microphone = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+      const microphone = textOnly ? await this.silentInput() : await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
       if (this.disposed) { microphone.getTracks().forEach((track) => track.stop()); return; }
       this.microphone = microphone;
-      for (const track of microphone.getAudioTracks()) peer.addTrack(track, microphone);
+      for (const track of microphone.getAudioTracks()) this.sender = peer.addTrack(track, microphone);
       const channel = this.channel = peer.createDataChannel("oai-events");
       channel.addEventListener("message", ({ data }) => {
         try { this.onEvent(JSON.parse(data)); }
@@ -103,6 +165,7 @@ export class VaultLiveSession {
   }
 
   mute(muted: boolean): void {
+    if (this.textOnly) return;
     this.microphone?.getAudioTracks().forEach((track) => { track.enabled = !muted; });
     if (this.active) this.setInputStatus(muted ? 'Microphone muted.' : 'Microphone on — waiting for recognized speech.');
   }
@@ -145,6 +208,9 @@ export class VaultLiveSession {
     clearTimeout(this.readinessTimer);
     clearTimeout(this.inputTimer);
     this.microphone?.getTracks().forEach((track) => track.stop());
+    this.silentSource?.stop(); this.silentSource = undefined;
+    void this.audioContext?.close().catch(() => {}); this.audioContext = undefined;
+    this.backendResponses.clear(); this.pendingResponses = 0; this.updateBusy();
     this.channel?.close();
     this.peer?.close();
     this.audio.pause();
@@ -158,8 +224,14 @@ export class VaultLiveSession {
     if (event.type === "session.started") {
       if (this.sessionStarted || this.ending) return;
       this.sessionStarted = true;
-      this.callbacks.state("connecting", "Warming up microphone… Please wait before speaking.");
-      void this.checkAudioReady();
+      if (this.textOnly) {
+        this.ready = true; clearTimeout(this.timer);
+        this.setInputStatus('Microphone off — type your message. Spoken replies are on.');
+        this.callbacks.state('connected', 'Ready — type your message. Microphone off.');
+      } else {
+        this.callbacks.state("connecting", "Warming up microphone… Please wait before speaking.");
+        void this.checkAudioReady();
+      }
     } else if (event.type === "session.closed") {
       this.dispose();
       this.callbacks.state("ended", "Conversation ended.");
@@ -227,7 +299,21 @@ export class VaultLiveSession {
   }
 
   private handleBackendEvent(event: Record<string, any>): void {
-    void this.loop.handle(event).catch(() => this.fail("Could not finish a voice note request. Check the dashboard before trying the change again."));
+    const nested = event.event;
+    const id = nested?.response?.id;
+    if (nested?.type === 'response.created' && typeof id === 'string') {
+      this.pendingResponses = Math.max(0, this.pendingResponses - 1); this.backendResponses.add(id); this.updateBusy();
+    }
+    void this.loop.handle(event).then(() => {
+      if (['response.completed', 'response.cancelled', 'response.incomplete', 'response.failed'].includes(nested?.type) && typeof id === 'string') {
+        this.backendResponses.delete(id); this.updateBusy();
+      }
+    }).catch(() => this.fail("Could not finish a vault request. Check the note before trying the change again."));
+  }
+
+  private updateBusy(): void {
+    this.backendBusy = this.pendingResponses > 0 || this.backendResponses.size > 0;
+    this.callbacks.busy?.(this.backendBusy);
   }
 
   private setInputStatus(message: string): void {
@@ -239,7 +325,7 @@ export class VaultLiveSession {
   /** Local numeric WebRTC levels only; never record, persist or transmit diagnostics. */
   private async checkInput(): Promise<void> {
     clearTimeout(this.inputTimer);
-    if (!this.active) return;
+    if (!this.active || this.textOnly) return;
     const track = this.microphone?.getAudioTracks()[0];
     let message: string;
     if (!track || track.readyState !== 'live' || track.muted) message = 'The phone microphone is not providing audio. Check microphone permission and the Bluetooth route.';
@@ -266,7 +352,10 @@ export class VaultLiveSession {
   }
 
   private send(event: Record<string, unknown>): void {
-    if (!this.disposed && this.channel?.readyState === "open") this.channel.send(JSON.stringify({ event_id: crypto.randomUUID(), ...event }));
+    if (!this.disposed && this.channel?.readyState === "open") {
+      if (event.type === 'response.create') { this.pendingResponses++; this.updateBusy(); }
+      this.channel.send(JSON.stringify({ event_id: crypto.randomUUID(), ...event }));
+    }
   }
 
   private fail(message: string): void {

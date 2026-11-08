@@ -18,6 +18,12 @@ export class VaultVoiceModal extends Modal {
   private startButton!: HTMLButtonElement;
   private muteButton!: HTMLButtonElement;
   private endButton!: HTMLButtonElement;
+  private textToggle!: HTMLButtonElement;
+  private composer!: HTMLFormElement;
+  private textInput!: HTMLTextAreaElement;
+  private sendButton!: HTMLButtonElement;
+  private pendingText = '';
+  private backendBusy = false;
   private expandButton!: HTMLButtonElement;
   private sourcePaths = new Set<string>();
   private resultsModal?: VaultSearchResultsModal;
@@ -35,7 +41,7 @@ export class VaultVoiceModal extends Modal {
     this.modalEl.addClass('fjgduo-vault-live-modal');
     const root = this.contentEl;
     root.createEl('p', { cls: 'fjgduo-vault-live-intro', text: 'Ask about your notes, capture a thought, or say what to update. Clear edits save immediately.' });
-    root.createEl('p', { cls: 'fjgduo-vault-live-caption', text: 'Starting sends microphone audio, the vault name, selected paths and relevant note excerpts to OpenAI. API charges may apply. ' + (this.plugin.settings.liveApiKey?.trim() ? 'Uses the key saved in File Focus Duo.' : 'Uses the key saved in Objective Manager for this conversation without copying or saving it in Duo.') });
+    root.createEl('p', { cls: 'fjgduo-vault-live-caption', text: 'Starting voice or sending text shares your messages, the vault name, selected paths and relevant note excerpts with OpenAI. Voice also sends microphone audio; starting with text keeps the microphone off. Spoken replies are on. API charges may apply. ' + (this.plugin.settings.liveApiKey?.trim() ? 'Uses the key saved in File Focus Duo.' : 'Uses the key saved in Objective Manager for this conversation without copying or saving it in Duo.') });
     this.status = root.createEl('p', { cls: 'fjgduo-vault-live-status', text: 'Microphone off — review the details before starting', attr: { role: 'status', 'aria-live': 'polite' } });
     this.inputStatus = root.createEl('p', { cls: 'fjgduo-vault-live-caption', text: 'Microphone off.', attr: { role: 'status', 'aria-live': 'polite', 'aria-label': 'Microphone input' } });
     this.coverage = root.createEl('p', { cls: 'fjgduo-vault-live-coverage', attr: { role: 'status' } });
@@ -54,6 +60,21 @@ export class VaultVoiceModal extends Modal {
     this.endButton.disabled = true; this.endButton.addEventListener('click', () => this.session?.end());
     this.expandButton = controls.createEl('button', { text: 'Expand conversation', cls: 'fjgduo-vault-live-expand' });
     this.expandButton.addEventListener('click', () => this.setCompact(false));
+    this.textToggle = controls.createEl('button', { text: 'Type a message', attr: { 'aria-expanded': 'false' } });
+    this.textToggle.addEventListener('click', () => {
+      this.composer.hidden = !this.composer.hidden;
+      this.textToggle.setAttribute('aria-expanded', String(!this.composer.hidden));
+      if (!this.composer.hidden) this.textInput.focus();
+    });
+    this.composer = root.createEl('form', { cls: 'fjgduo-vault-live-composer' }); this.composer.hidden = true;
+    const label = this.composer.createEl('label', { text: 'Message to your vault assistant' });
+    this.textInput = label.createEl('textarea', { placeholder: 'Type the same request you would say…', attr: { 'aria-label': 'Message to your vault assistant', rows: '3', maxlength: '8000' } });
+    this.sendButton = this.composer.createEl('button', { text: 'Send message', cls: 'mod-cta', attr: { type: 'submit' } });
+    this.composer.createEl('p', { cls: 'fjgduo-vault-live-caption', text: 'Same conversation, AI tools and spoken replies as voice. Enter sends; Shift+Enter adds a line. Clear requested edits save immediately.' });
+    this.composer.addEventListener('submit', event => { event.preventDefault(); void this.sendText(); });
+    this.textInput.addEventListener('keydown', event => {
+      if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); void this.sendText(); }
+    });
     this.audio = root.createEl('audio', { attr: { controls: '', autoplay: '', 'aria-label': 'Assistant voice playback' } });
     this.transcript = root.createDiv({ cls: 'fjgduo-vault-live-transcript', attr: { role: 'log', 'aria-label': 'Conversation', 'aria-live': 'polite' } });
     this.transcript.createEl('p', { cls: 'fjgduo-vault-live-caption', text: 'Try: “Find my notes about summer planning” or “Add this thought to my meeting note.”' });
@@ -68,9 +89,24 @@ export class VaultVoiceModal extends Modal {
     if (!(file instanceof TFile)) throw new Error('The note no longer exists.');
     return file;
   }
-  async start(): Promise<void> {
+  private async sendText(): Promise<void> {
+    if (this.closed || this.sendButton.disabled) return;
+    const text = this.textInput.value.trim();
+    if (!text) { this.status.setText('Type a message first.'); this.textInput.focus(); return; }
+    if (this.session?.active) {
+      try { this.lastSpeaker = ''; this.session.sendText(text); this.textInput.value = ''; this.status.setText('Message sent. Waiting for the assistant…'); }
+      catch (error) { this.status.setText(error instanceof Error ? error.message : 'Could not send the message.'); }
+      return;
+    }
+    this.pendingText = text;
+    await this.start(true);
+  }
+  async start(textOnly = false): Promise<void> {
     if (this.closed || this.startButton.disabled) return;
-    this.startButton.disabled = true; this.session?.dispose(); this.muted = false;
+    if (this.session?.active && this.session.isTextOnly && !textOnly) {
+      this.startButton.disabled = true; await this.session.enableMicrophone(); return;
+    }
+    this.startButton.disabled = true; this.session?.dispose(); this.muted = false; this.backendBusy = false;
     this.muteButton.setText('Mute microphone'); this.muteButton.setAttribute('aria-pressed', 'false');
     this.lastSpeaker = ''; this.lastText = undefined;
     const port: VaultPort = {
@@ -99,6 +135,7 @@ export class VaultVoiceModal extends Modal {
     });
     session = new VaultLiveSession(this.audio, {
       state: (state, message) => this.setState(state, message),
+      busy: busy => { this.backendBusy = busy; this.refreshSend(); },
       inputStatus: message => { if (!this.closed) this.inputStatus.setText(message); },
       transcript: (speaker, delta) => this.addTranscript(speaker, delta),
       execute: (name, args) => tools.execute(name, args)
@@ -110,18 +147,31 @@ export class VaultVoiceModal extends Modal {
       const context = JSON.stringify({ vault: this.app.vault.getName(), local_date: new Date().toLocaleDateString('en-CA'),
         time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone, selected_folder: this.voiceSelection.folder,
         selected_note: this.voiceSelection.note || this.app.workspace.getActiveFile()?.path || '', search_scope: 'Entire vault unless the user requests a folder' });
-      await session.start(key, this.plugin.settings.liveBackendModel, context);
+      await session.start(key, this.plugin.settings.liveBackendModel, context, textOnly);
     } catch { session.dispose(); this.setState('error', 'Could not read the saved key. Check the Vault voice API key in File Focus Duo settings; no connection was made.'); }
   }
   onClose(): void { this.closed = true; this.resultsModal?.close(); this.session?.end(); this.release(); }
   shutdown(): void { this.session?.end(); this.session?.dispose(); this.close(); }
+  private refreshSend(): void {
+    if (!this.sendButton || this.closed) return;
+    const connecting = ['connecting', 'ending'].includes(this.status.dataset.state || '');
+    this.sendButton.disabled = connecting || this.backendBusy;
+    this.sendButton.setText(this.backendBusy ? 'Assistant working…' : connecting ? 'Connecting…' : 'Send message');
+  }
   private setState(state: LiveState, message: string): void {
     if (this.closed) return;
     this.status.setText(message); this.status.dataset.state = state;
-    this.startButton.setText(state === "connecting" ? "Connecting…" : state === "connected" ? "Conversation active" : this.startLabel());
+    this.startButton.setText(state === "connecting" ? "Connecting…" : state === "connected" ? (this.session?.isTextOnly ? 'Turn on microphone' : 'Conversation active') : this.startLabel());
     this.status.setAttribute("aria-busy", String(state === "connecting"));
-    this.startButton.disabled = ['connecting', 'connected', 'ending'].includes(state);
-    this.muteButton.disabled = state !== 'connected'; this.endButton.disabled = !['connecting', 'connected'].includes(state);
+    this.startButton.disabled = ['connecting', 'ending'].includes(state) || (state === 'connected' && !this.session?.isTextOnly);
+    this.muteButton.disabled = state !== 'connected' || !!this.session?.isTextOnly; this.endButton.disabled = !['connecting', 'connected'].includes(state);
+    if (state === 'connected' && this.pendingText) {
+      const text = this.pendingText; this.pendingText = '';
+      try { this.lastSpeaker = ''; this.session!.sendText(text); this.textInput.value = ''; }
+      catch (error) { this.status.setText(error instanceof Error ? error.message : 'Could not send the message.'); }
+    }
+    if (['error', 'ended'].includes(state)) { this.pendingText = ''; this.backendBusy = false; }
+    this.refreshSend();
   }
   private addSource(path: string): void {
     if (this.closed || this.sourcePaths.has(path)) return;
