@@ -154,11 +154,16 @@ const vm = require('node:vm');
   await check('microphone switches on only by explicit action and keeps the same conversation', async () => {
     const f=fixture(); await f.start(true); await f.started(); const peer=f.peer;
     await f.session.enableMicrophone(); assert.equal(f.micCalls,1); assert.equal(f.apiCalls,1);
+    assert.match(f.states.at(-1).message,/Warming up microphone/); await f.ready(); assert.match(f.states.at(-1).message,/Ready/);
     assert.equal(f.peer,peer); assert.equal(f.session.isTextOnly,false); assert.equal(f.silentTrack.readyState,'ended'); assert.equal(f.audioContext.state,'closed');
     f.session.sendText('Typed while voice is on'); assert.equal(f.micCalls,1); f.session.dispose();
     const denied=fixture({denied:true}); await denied.start(true); await denied.started(); await denied.session.enableMicrophone();
     assert.equal(denied.session.active,true); assert.equal(denied.session.isTextOnly,true); denied.session.sendText('Still typing'); denied.session.dispose();
   });
 
+  await check('typed playback-blocked readiness tells the user to press play, not speak', async () => {
+    const f=fixture(); await f.start(true); f.session.playbackBlocked=true; await f.started();
+    assert.match(f.states.at(-1).message,/type your message.*Press play/); f.session.dispose();
+  });
   console.log(`${passed} synthetic voice scenarios passed. No actual microphone, keys, vault content or network used.`);
 })().catch(error => {console.error(error); process.exitCode = 1;});

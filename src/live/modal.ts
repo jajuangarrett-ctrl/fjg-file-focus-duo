@@ -167,7 +167,7 @@ export class VaultVoiceModal extends Modal {
     this.muteButton.disabled = state !== 'connected' || !!this.session?.isTextOnly; this.endButton.disabled = !['connecting', 'connected'].includes(state);
     if (state === 'connected' && this.pendingText) {
       const text = this.pendingText; this.pendingText = '';
-      try { this.lastSpeaker = ''; this.session!.sendText(text); this.textInput.value = ''; }
+      try { this.lastSpeaker = ''; this.session!.sendText(text); if (this.textInput.value.trim() === text) this.textInput.value = ''; }
       catch (error) { this.status.setText(error instanceof Error ? error.message : 'Could not send the message.'); }
     }
     if (['error', 'ended'].includes(state)) { this.pendingText = ''; this.backendBusy = false; }

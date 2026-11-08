@@ -26,6 +26,7 @@ export class VaultLiveSession {
   private microphone?: MediaStream;
   private ready = false;
   private textOnly = false;
+  private microphoneWarming = false;
   private audioContext?: AudioContext;
   private silentSource?: OscillatorNode;
   private silentStream?: MediaStream;
@@ -81,8 +82,10 @@ export class VaultLiveSession {
       this.silentSource?.stop(); this.silentSource = undefined;
       void this.audioContext?.close().catch(() => {}); this.audioContext = undefined;
       this.connectedAt = Date.now(); this.inputRecognized = false;
-      this.callbacks.state('connected', 'Microphone on — you can speak or type.');
-      void this.checkInput();
+      this.microphoneWarming = true; this.audioStableSince = 0; this.lastAudioBytes = 0; this.lastAudioProgress = 0;
+      this.callbacks.state('connected', 'Warming up microphone… You can keep typing while it gets ready.');
+      this.setInputStatus('Microphone warming up — wait before speaking.');
+      void this.checkAudioReady();
     } catch {
       microphone?.getTracks().forEach(track => track.stop());
       if (this.active) this.callbacks.state('connected', 'Microphone unavailable. You can keep typing.');
@@ -120,7 +123,7 @@ export class VaultLiveSession {
         this.audio.srcObject = new MediaStream([event.track]);
         void this.audio.play().catch(() => {
           this.playbackBlocked = true;
-          if (this.active) this.callbacks.state("connected", "Ready — start speaking. Press play below to hear replies.");
+          if (this.active) this.callbacks.state("connected", this.textOnly ? "Ready — type your message. Microphone off. Press play below to hear replies." : "Ready — start speaking. Press play below to hear replies.");
         });
       });
       // Start from the user's click; never automatically reopen a microphone after disconnecting.
@@ -229,8 +232,8 @@ export class VaultLiveSession {
       this.sessionStarted = true;
       if (this.textOnly) {
         this.ready = true; clearTimeout(this.timer);
-        this.setInputStatus('Microphone off — type your message. Spoken replies are on.');
-        this.callbacks.state('connected', 'Ready — type your message. Microphone off.');
+        this.setInputStatus('Microphone off — type your message.');
+        this.callbacks.state('connected', this.playbackBlocked ? 'Ready — type your message. Microphone off. Press play below to hear replies.' : 'Ready — type your message. Microphone off.');
       } else {
         this.callbacks.state("connecting", "Warming up microphone… Please wait before speaking.");
         void this.checkAudioReady();
@@ -261,7 +264,7 @@ export class VaultLiveSession {
 
   /** A session event alone does not establish that the phone audio path is sending. */
   private async checkAudioReady(): Promise<void> {
-    if (this.disposed || this.ending || this.ready) return;
+    if (this.disposed || this.ending || (this.ready && !this.microphoneWarming)) return;
     try {
       const peer = this.peer;
       const track = this.microphone?.getAudioTracks()[0];
@@ -281,7 +284,7 @@ export class VaultLiveSession {
         // Conservative mobile warm-up for reported loss of the opening phrase.
         // Packet flow is transport evidence, not proof of server speech recognition.
         if (Date.now() - this.audioStableSince >= (Platform.isMobile ? 3500 : 200)) {
-          this.ready = true;
+          this.ready = true; this.microphoneWarming = false;
           clearTimeout(this.timer);
           this.connectedAt = Date.now();
           const pending = this.pendingBackendEvents;

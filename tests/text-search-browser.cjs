@@ -19,7 +19,7 @@ export class Modal {
   const setup = `
 import {VaultVoiceModal} from './src/live/modal';
 import {TFile} from 'obsidian';
-let eventId=0;crypto.randomUUID=()=>String(++eventId);window.apiCalls=0;window.micCalls=0;window.keyCalls=0;window.opened=[];window.notices=[];window.reads=0;window.responseDelay=10;
+let eventId=0;crypto.randomUUID=()=>String(++eventId);window.apiCalls=0;window.micCalls=0;window.keyCalls=0;window.opened=[];window.notices=[];window.reads=0;window.responseDelay=10;window.startDelay=100;
 const stream=()=>{const track={readyState:'live',enabled:true,muted:false,stop(){this.readyState='ended';}};return {getTracks:()=>[track],getAudioTracks:()=>[track]};};
 Object.defineProperty(navigator,'mediaDevices',{value:{getUserMedia:async()=>{window.micCalls++;return stream();}}});
 window.AudioContext=class {state='suspended';createMediaStreamDestination(){return {stream:stream()};}createOscillator(){return {connect(){},start(){},stop(){}};}createGain(){return {gain:{value:1},connect(){}};}async resume(){this.state='running';}async close(){this.state='closed';}};
@@ -35,7 +35,7 @@ class Channel extends EventTarget {
  }
  close(){this.readyState='closed';}
 }
-window.RTCPeerConnection=class extends EventTarget {connectionState='connected';iceGatheringState='complete';localDescription={sdp:'fixture-offer'};channel=new Channel();constructor(){super();window.peer=this;}addTrack(){return {replaceTrack:async()=>{}};}createDataChannel(){return this.channel;}async createOffer(){return this.localDescription;}async setLocalDescription(){}async setRemoteDescription(){setTimeout(()=>this.channel.event({type:'session.started'}),0);}async getStats(){return new Map();}close(){this.connectionState='closed';}};
+window.RTCPeerConnection=class extends EventTarget {connectionState='connected';iceGatheringState='complete';localDescription={sdp:'fixture-offer'};channel=new Channel();constructor(){super();window.peer=this;}addTrack(){return {replaceTrack:async()=>{}};}createDataChannel(){return this.channel;}async createOffer(){return this.localDescription;}async setLocalDescription(){}async setRemoteDescription(){setTimeout(()=>this.channel.event({type:'session.started'}),window.startDelay);}async getStats(){return new Map();}close(){this.connectionState='closed';}};
 const proto=HTMLElement.prototype;
 proto.addClass=function(...v){this.classList.add(...v)};proto.setText=function(t){this.textContent=t};proto.empty=function(){this.replaceChildren()};proto.appendText=function(t){this.append(document.createTextNode(t))};
 proto.createEl=function(tag,o={}){const el=document.createElement(tag);if(o.text)el.textContent=o.text;if(o.cls)el.className=o.cls;for(const k of ['type','value','href','placeholder'])if(o[k])el[k]=o[k];Object.entries(o.attr||{}).forEach(([k,v])=>el.setAttribute(k,v));this.append(el);return el;};
@@ -64,8 +64,9 @@ window.openVoice();`;
     assert.ok(await input.evaluate(el=>el===document.activeElement));
     assert.deepEqual(await page.evaluate(()=>({api:window.apiCalls,mic:window.micCalls,keys:window.keyCalls})),{api:0,mic:0,keys:0});
     await input.press('Enter');await page.getByText('Type a message first.',{exact:true}).waitFor();
-    await input.fill('Summarize my winter plan');await input.press('Enter');
-    await page.getByText('Here is the AI answer about your winter plan.',{exact:true}).waitFor();
+    await input.fill('IME draft');await input.evaluate(el=>el.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',isComposing:true,bubbles:true})));assert.equal(await page.evaluate(()=>window.apiCalls),0);
+    await input.fill('Summarize my winter plan');await input.press('Enter');await input.fill('New draft while connecting');
+    await page.getByText('Here is the AI answer about your winter plan.',{exact:true}).waitFor();assert.equal(await input.inputValue(),'New draft while connecting');
     await page.getByRole('button',{name:'Send message',exact:true}).waitFor();
     assert.deepEqual(await page.evaluate(()=>({api:window.apiCalls,mic:window.micCalls,keys:window.keyCalls})),{api:1,mic:0,keys:1});
     const protocol=await page.evaluate(()=>window.peer.channel.sent.map(e=>e.type));assert.ok(protocol.includes('response.item.create'));assert.equal(protocol.filter(t=>t==='response.create').length,2);
@@ -80,7 +81,7 @@ window.openVoice();`;
     await page.evaluate(()=>window.responseDelay=100);await input.press('Enter');
     assert.equal(await page.getByRole('button',{name:'Assistant working…'}).isDisabled(),true);
     await input.press('Enter');await page.getByRole('button',{name:'Send message',exact:true}).waitFor();assert.equal(await page.evaluate(()=>window.apiCalls),1);
-    await page.getByRole('button',{name:'Turn on microphone',exact:true}).click();await page.getByText('Microphone on — you can speak or type.',{exact:true}).waitFor();
+    await page.getByRole('button',{name:'Turn on microphone',exact:true}).click();await page.getByText('Warming up microphone… You can keep typing while it gets ready.',{exact:true}).waitFor();
     assert.equal(await page.evaluate(()=>window.micCalls),1);assert.equal(await page.evaluate(()=>window.apiCalls),1);
     await page.getByRole('button',{name:'End conversation',exact:true}).click();await page.getByText('Conversation ended.',{exact:true}).waitFor();
     await input.fill('Restart by typing');await input.press('Enter');await page.getByRole('button',{name:'Send message',exact:true}).waitFor();assert.equal(await page.evaluate(()=>window.micCalls),1);assert.equal(await page.evaluate(()=>window.apiCalls),2);

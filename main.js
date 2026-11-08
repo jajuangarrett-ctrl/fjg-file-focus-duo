@@ -6761,6 +6761,7 @@ class VaultLiveSession {
         this.callbacks = callbacks;
         this.ready = false;
         this.textOnly = false;
+        this.microphoneWarming = false;
         this.backendResponses = new Set();
         this.pendingResponses = 0;
         this.backendBusy = false;
@@ -6823,8 +6824,13 @@ class VaultLiveSession {
                 this.audioContext = undefined;
                 this.connectedAt = Date.now();
                 this.inputRecognized = false;
-                this.callbacks.state('connected', 'Microphone on — you can speak or type.');
-                void this.checkInput();
+                this.microphoneWarming = true;
+                this.audioStableSince = 0;
+                this.lastAudioBytes = 0;
+                this.lastAudioProgress = 0;
+                this.callbacks.state('connected', 'Warming up microphone… You can keep typing while it gets ready.');
+                this.setInputStatus('Microphone warming up — wait before speaking.');
+                void this.checkAudioReady();
             }
             catch (_d) {
                 microphone === null || microphone === void 0 ? void 0 : microphone.getTracks().forEach(track => track.stop());
@@ -6881,7 +6887,7 @@ class VaultLiveSession {
                     void this.audio.play().catch(() => {
                         this.playbackBlocked = true;
                         if (this.active)
-                            this.callbacks.state("connected", "Ready — start speaking. Press play below to hear replies.");
+                            this.callbacks.state("connected", this.textOnly ? "Ready — type your message. Microphone off. Press play below to hear replies." : "Ready — start speaking. Press play below to hear replies.");
                     });
                 });
                 // Start from the user's click; never automatically reopen a microphone after disconnecting.
@@ -7026,8 +7032,8 @@ class VaultLiveSession {
             if (this.textOnly) {
                 this.ready = true;
                 clearTimeout(this.timer);
-                this.setInputStatus('Microphone off — type your message. Spoken replies are on.');
-                this.callbacks.state('connected', 'Ready — type your message. Microphone off.');
+                this.setInputStatus('Microphone off — type your message.');
+                this.callbacks.state('connected', this.playbackBlocked ? 'Ready — type your message. Microphone off. Press play below to hear replies.' : 'Ready — type your message. Microphone off.');
             }
             else {
                 this.callbacks.state("connecting", "Warming up microphone… Please wait before speaking.");
@@ -7069,7 +7075,7 @@ class VaultLiveSession {
     checkAudioReady() {
         var _a;
         return __awaiter(this, void 0, void 0, function* () {
-            if (this.disposed || this.ending || this.ready)
+            if (this.disposed || this.ending || (this.ready && !this.microphoneWarming))
                 return;
             try {
                 const peer = this.peer;
@@ -7094,6 +7100,7 @@ class VaultLiveSession {
                     // Packet flow is transport evidence, not proof of server speech recognition.
                     if (Date.now() - this.audioStableSince >= (obsidian.Platform.isMobile ? 3500 : 200)) {
                         this.ready = true;
+                        this.microphoneWarming = false;
                         clearTimeout(this.timer);
                         this.connectedAt = Date.now();
                         const pending = this.pendingBackendEvents;
@@ -7496,7 +7503,8 @@ class VaultVoiceModal extends obsidian.Modal {
             try {
                 this.lastSpeaker = '';
                 this.session.sendText(text);
-                this.textInput.value = '';
+                if (this.textInput.value.trim() === text)
+                    this.textInput.value = '';
             }
             catch (error) {
                 this.status.setText(error instanceof Error ? error.message : 'Could not send the message.');
