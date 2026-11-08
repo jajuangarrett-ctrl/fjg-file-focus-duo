@@ -1,3 +1,11 @@
+## Type into the voice conversation — 0.1.12
+
+Open **Talk to your vault**, choose **Type a message**, and send the same request you would say. Typed turns use the existing GPT-Live conversation, configured backend model, full vault tools and spoken replies. Search, note reading, capture, explicitly requested edits and opening results retain the same safeguards and context as voice. Enter sends, Shift+Enter adds a line, and the Send button waits while backend work and tool continuations finish.
+
+Starting with text creates a silent audio track without requesting or recording the microphone. **Turn on microphone** is a separate explicit action that keeps the same conversation. Typing in an already active voice conversation also keeps that conversation. Opening the dialog or revealing the input does not access the key or call the API. Sending uses the existing key source and carries the same OpenAI data-sharing and charge disclosure. End/Close stops the session and generated audio resources.
+
+Validation: `npm run typecheck`, `npm test`, `npm run test:voice`, `npm run test:text`, and `npm run build`. Tests cover the supported Live typed-input protocol, full tool/model parity, duplicate-submit blocking through tool continuations, silent startup, microphone opt-in and denial, follow-ups, end/restart, and 320/390/768/1200px synthetic browser layouts. No paid API, real microphone or private vault data was used for these tests. Real device audio playback and account/model access still need user verification. Protocol reference: https://developers.openai.com/api/docs/guides/live-delegation#accept-typed-input .
+
 ## Toolbar Omnisearch — 0.1.11
 
 The top-row magnifying-glass button now opens Omnisearch’s vault search from Folders, Shortcuts, Recent and Bookmarks without changing the current view or folder. Its tooltip and accessibility label are **Open Omnisearch**. If Omnisearch is unavailable, the button explains how to enable it rather than falling back to a different search.

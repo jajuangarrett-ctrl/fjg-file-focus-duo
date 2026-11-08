@@ -25,3 +25,12 @@ Goal: preserve opening requests during startup and distinguish a connected trans
 The physical-phone checks remain open. A connected silent synthetic stream does not prove speech recognition. These are project goals documented in source; no native goal-management service was available in the execution environment.
 
 Delivery: [BRAT release 0.1.10](https://github.com/jajuangarrett-ctrl/fjg-file-focus-duo/releases/tag/0.1.10), verified through anonymous downloads and SHA-256 matches. The runtime is installed on the Mac; Duo was already disabled there and remains disabled. Standard File Focus remains unchanged.
+
+
+## Typed turns with spoken answers
+
+- [x] Add an accessible inline text composer in the voice dialog.
+- [x] Route typed turns through the same session, backend and full tool set.
+- [x] Preserve voice replies while keeping the microphone off for text-first startup.
+- [x] Validate transport, busy lifecycle, mic opt-in, keyboard and responsive layout using synthetic data.
+- [ ] Verify actual spoken playback and a user-authorized turn on the physical phone.

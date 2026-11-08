@@ -6760,6 +6760,10 @@ class VaultLiveSession {
         this.audio = audio;
         this.callbacks = callbacks;
         this.ready = false;
+        this.textOnly = false;
+        this.backendResponses = new Set();
+        this.pendingResponses = 0;
+        this.backendBusy = false;
         this.sessionStarted = false;
         this.audioStableSince = 0;
         this.lastAudioBytes = 0;
@@ -6774,16 +6778,100 @@ class VaultLiveSession {
         this.loop = new LiveToolLoop(callbacks.execute, (event) => this.send(event));
     }
     get active() { return this.ready && !this.disposed && !this.ending; }
-    start(apiKey, backendModel, context) {
+    get isTextOnly() { return this.textOnly; }
+    sendText(text) {
+        var _a;
+        const message = text.trim();
+        if (!message || message.length > 8000)
+            throw new Error('Enter a message of up to 8,000 characters.');
+        if (!this.active || ((_a = this.channel) === null || _a === void 0 ? void 0 : _a.readyState) !== 'open')
+            throw new Error('Wait for the conversation to connect.');
+        if (this.backendBusy)
+            throw new Error('Wait for the current request to finish before sending another.');
+        // Supported Live typed-input protocol: exact user text enters the same backend conversation.
+        this.send({ type: 'session.thinking.append', delegation_id: null, content: 'The user has submitted a typed message to your backend. Treat it like spoken input and speak the resulting answer aloud.' });
+        this.send({ type: 'response.item.create', item: { type: 'message', role: 'user', content: [{ type: 'input_text', text: message }] } });
+        this.send({ type: 'response.create' });
+        this.callbacks.transcript('You', message);
+    }
+    enableMicrophone() {
+        var _a, _b, _c;
+        return __awaiter(this, void 0, void 0, function* () {
+            if (!this.active || !this.textOnly)
+                return;
+            let microphone;
+            try {
+                microphone = yield navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+                if (!this.active) {
+                    microphone.getTracks().forEach(track => track.stop());
+                    return;
+                }
+                const track = microphone.getAudioTracks()[0];
+                if (!track || !this.sender)
+                    throw new Error('No microphone track was available.');
+                yield this.sender.replaceTrack(track);
+                if (!this.active) {
+                    microphone.getTracks().forEach(track => track.stop());
+                    return;
+                }
+                (_a = this.microphone) === null || _a === void 0 ? void 0 : _a.getTracks().forEach(track => track.stop());
+                this.microphone = microphone;
+                this.textOnly = false;
+                (_b = this.silentSource) === null || _b === void 0 ? void 0 : _b.stop();
+                this.silentSource = undefined;
+                void ((_c = this.audioContext) === null || _c === void 0 ? void 0 : _c.close().catch(() => { }));
+                this.audioContext = undefined;
+                this.connectedAt = Date.now();
+                this.inputRecognized = false;
+                this.callbacks.state('connected', 'Microphone on — you can speak or type.');
+                void this.checkInput();
+            }
+            catch (_d) {
+                microphone === null || microphone === void 0 ? void 0 : microphone.getTracks().forEach(track => track.stop());
+                if (this.active)
+                    this.callbacks.state('connected', 'Microphone unavailable. You can keep typing.');
+            }
+        });
+    }
+    silentInput() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const Audio = globalThis.AudioContext || globalThis.webkitAudioContext;
+            if (!Audio)
+                throw new Error('Text with spoken replies is not supported on this device.');
+            const context = this.audioContext = new Audio();
+            const destination = context.createMediaStreamDestination();
+            this.silentStream = destination.stream;
+            const source = this.silentSource = context.createOscillator();
+            const gain = context.createGain();
+            gain.gain.value = 0;
+            source.connect(gain);
+            gain.connect(destination);
+            source.start();
+            // Generated silence keeps the Live audio clock moving without recording the user.
+            const resume = context.resume();
+            let timeout;
+            try {
+                yield Promise.race([resume, new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error('Tap Send again to allow audio playback.')), 5000); })]);
+            }
+            finally {
+                clearTimeout(timeout);
+            }
+            if (context.state !== 'running')
+                throw new Error('Tap Send again to allow audio playback.');
+            return destination.stream;
+        });
+    }
+    start(apiKey, backendModel, context, textOnly = false) {
         var _a, _b, _c, _d, _e;
         return __awaiter(this, void 0, void 0, function* () {
             if (this.disposed)
                 return;
-            this.callbacks.state("connecting", "Connecting… Please wait before speaking.");
+            this.textOnly = textOnly;
+            this.callbacks.state("connecting", textOnly ? "Connecting for typed messages… Microphone off." : "Connecting… Please wait before speaking.");
             try {
                 if (!apiKey.trim())
                     throw new Error("No saved voice key was found. Add a key in File Focus Duo settings or save one in Objective Manager before starting.");
-                if (!((_a = navigator.mediaDevices) === null || _a === void 0 ? void 0 : _a.getUserMedia) || typeof RTCPeerConnection === "undefined")
+                if ((!textOnly && !((_a = navigator.mediaDevices) === null || _a === void 0 ? void 0 : _a.getUserMedia)) || typeof RTCPeerConnection === "undefined")
                     throw new Error("Live voice is not supported on this device.");
                 const peer = this.peer = new RTCPeerConnection();
                 peer.addEventListener("track", (event) => {
@@ -6797,14 +6885,14 @@ class VaultLiveSession {
                     });
                 });
                 // Start from the user's click; never automatically reopen a microphone after disconnecting.
-                const microphone = yield navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+                const microphone = textOnly ? yield this.silentInput() : yield navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
                 if (this.disposed) {
                     microphone.getTracks().forEach((track) => track.stop());
                     return;
                 }
                 this.microphone = microphone;
                 for (const track of microphone.getAudioTracks())
-                    peer.addTrack(track, microphone);
+                    this.sender = peer.addTrack(track, microphone);
                 const channel = this.channel = peer.createDataChannel("oai-events");
                 channel.addEventListener("message", ({ data }) => {
                     try {
@@ -6863,6 +6951,8 @@ class VaultLiveSession {
     }
     mute(muted) {
         var _a;
+        if (this.textOnly)
+            return;
         (_a = this.microphone) === null || _a === void 0 ? void 0 : _a.getAudioTracks().forEach((track) => { track.enabled = !muted; });
         if (this.active)
             this.setInputStatus(muted ? 'Microphone muted.' : 'Microphone on — waiting for recognized speech.');
@@ -6899,7 +6989,7 @@ class VaultLiveSession {
         }
     }
     dispose() {
-        var _a, _b, _c;
+        var _a, _b, _c, _d, _e, _f;
         if (this.disposed)
             return;
         this.disposed = true;
@@ -6909,8 +6999,17 @@ class VaultLiveSession {
         clearTimeout(this.readinessTimer);
         clearTimeout(this.inputTimer);
         (_a = this.microphone) === null || _a === void 0 ? void 0 : _a.getTracks().forEach((track) => track.stop());
-        (_b = this.channel) === null || _b === void 0 ? void 0 : _b.close();
-        (_c = this.peer) === null || _c === void 0 ? void 0 : _c.close();
+        (_b = this.silentSource) === null || _b === void 0 ? void 0 : _b.stop();
+        this.silentSource = undefined;
+        (_c = this.silentStream) === null || _c === void 0 ? void 0 : _c.getTracks().forEach(track => track.stop());
+        this.silentStream = undefined;
+        void ((_d = this.audioContext) === null || _d === void 0 ? void 0 : _d.close().catch(() => { }));
+        this.audioContext = undefined;
+        this.backendResponses.clear();
+        this.pendingResponses = 0;
+        this.updateBusy();
+        (_e = this.channel) === null || _e === void 0 ? void 0 : _e.close();
+        (_f = this.peer) === null || _f === void 0 ? void 0 : _f.close();
         this.audio.pause();
         this.audio.srcObject = null;
         this.ready = false;
@@ -6924,8 +7023,16 @@ class VaultLiveSession {
             if (this.sessionStarted || this.ending)
                 return;
             this.sessionStarted = true;
-            this.callbacks.state("connecting", "Warming up microphone… Please wait before speaking.");
-            void this.checkAudioReady();
+            if (this.textOnly) {
+                this.ready = true;
+                clearTimeout(this.timer);
+                this.setInputStatus('Microphone off — type your message. Spoken replies are on.');
+                this.callbacks.state('connected', 'Ready — type your message. Microphone off.');
+            }
+            else {
+                this.callbacks.state("connecting", "Warming up microphone… Please wait before speaking.");
+                void this.checkAudioReady();
+            }
         }
         else if (event.type === "session.closed") {
             this.dispose();
@@ -7010,7 +7117,25 @@ class VaultLiveSession {
         });
     }
     handleBackendEvent(event) {
-        void this.loop.handle(event).catch(() => this.fail("Could not finish a voice note request. Check the dashboard before trying the change again."));
+        var _a;
+        const nested = event.event;
+        const id = (_a = nested === null || nested === void 0 ? void 0 : nested.response) === null || _a === void 0 ? void 0 : _a.id;
+        if ((nested === null || nested === void 0 ? void 0 : nested.type) === 'response.created' && typeof id === 'string') {
+            this.pendingResponses = Math.max(0, this.pendingResponses - 1);
+            this.backendResponses.add(id);
+            this.updateBusy();
+        }
+        void this.loop.handle(event).then(() => {
+            if (['response.completed', 'response.cancelled', 'response.incomplete', 'response.failed'].includes(nested === null || nested === void 0 ? void 0 : nested.type) && typeof id === 'string') {
+                this.backendResponses.delete(id);
+                this.updateBusy();
+            }
+        }).catch(() => this.fail("Could not finish a vault request. Check the note before trying the change again."));
+    }
+    updateBusy() {
+        var _a, _b;
+        this.backendBusy = this.pendingResponses > 0 || this.backendResponses.size > 0;
+        (_b = (_a = this.callbacks).busy) === null || _b === void 0 ? void 0 : _b.call(_a, this.backendBusy);
     }
     setInputStatus(message) {
         var _a, _b;
@@ -7024,7 +7149,7 @@ class VaultLiveSession {
         var _a, _b;
         return __awaiter(this, void 0, void 0, function* () {
             clearTimeout(this.inputTimer);
-            if (!this.active)
+            if (!this.active || this.textOnly)
                 return;
             const track = (_a = this.microphone) === null || _a === void 0 ? void 0 : _a.getAudioTracks()[0];
             let message;
@@ -7063,8 +7188,13 @@ class VaultLiveSession {
     }
     send(event) {
         var _a;
-        if (!this.disposed && ((_a = this.channel) === null || _a === void 0 ? void 0 : _a.readyState) === "open")
+        if (!this.disposed && ((_a = this.channel) === null || _a === void 0 ? void 0 : _a.readyState) === "open") {
+            if (event.type === 'response.create') {
+                this.pendingResponses++;
+                this.updateBusy();
+            }
             this.channel.send(JSON.stringify(Object.assign({ event_id: crypto.randomUUID() }, event)));
+        }
     }
     fail(message) {
         if (this.disposed)
@@ -7165,6 +7295,8 @@ class VaultVoiceModal extends obsidian.Modal {
         super(app);
         this.closed = false;
         this.muted = false;
+        this.pendingText = '';
+        this.backendBusy = false;
         this.sourcePaths = new Set();
         this.lastSpeaker = '';
         this.plugin = plugin;
@@ -7177,7 +7309,7 @@ class VaultVoiceModal extends obsidian.Modal {
         this.modalEl.addClass('fjgduo-vault-live-modal');
         const root = this.contentEl;
         root.createEl('p', { cls: 'fjgduo-vault-live-intro', text: 'Ask about your notes, capture a thought, or say what to update. Clear edits save immediately.' });
-        root.createEl('p', { cls: 'fjgduo-vault-live-caption', text: 'Starting sends microphone audio, the vault name, selected paths and relevant note excerpts to OpenAI. API charges may apply. ' + (((_a = this.plugin.settings.liveApiKey) === null || _a === void 0 ? void 0 : _a.trim()) ? 'Uses the key saved in File Focus Duo.' : 'Uses the key saved in Objective Manager for this conversation without copying or saving it in Duo.') });
+        root.createEl('p', { cls: 'fjgduo-vault-live-caption', text: 'Starting voice or sending text shares your messages, the vault name, selected paths and relevant note excerpts with OpenAI. Voice also sends microphone audio; starting with text keeps the microphone off. Spoken replies are on. API charges may apply. ' + (((_a = this.plugin.settings.liveApiKey) === null || _a === void 0 ? void 0 : _a.trim()) ? 'Uses the key saved in File Focus Duo.' : 'Uses the key saved in Objective Manager for this conversation without copying or saving it in Duo.') });
         this.status = root.createEl('p', { cls: 'fjgduo-vault-live-status', text: 'Microphone off — review the details before starting', attr: { role: 'status', 'aria-live': 'polite' } });
         this.inputStatus = root.createEl('p', { cls: 'fjgduo-vault-live-caption', text: 'Microphone off.', attr: { role: 'status', 'aria-live': 'polite', 'aria-label': 'Microphone input' } });
         this.coverage = root.createEl('p', { cls: 'fjgduo-vault-live-coverage', attr: { role: 'status' } });
@@ -7199,6 +7331,26 @@ class VaultVoiceModal extends obsidian.Modal {
         this.endButton.addEventListener('click', () => { var _a; return (_a = this.session) === null || _a === void 0 ? void 0 : _a.end(); });
         this.expandButton = controls.createEl('button', { text: 'Expand conversation', cls: 'fjgduo-vault-live-expand' });
         this.expandButton.addEventListener('click', () => this.setCompact(false));
+        this.textToggle = controls.createEl('button', { text: 'Type a message', attr: { 'aria-expanded': 'false' } });
+        this.textToggle.addEventListener('click', () => {
+            this.composer.hidden = !this.composer.hidden;
+            this.textToggle.setAttribute('aria-expanded', String(!this.composer.hidden));
+            if (!this.composer.hidden)
+                this.textInput.focus();
+        });
+        this.composer = root.createEl('form', { cls: 'fjgduo-vault-live-composer' });
+        this.composer.hidden = true;
+        const label = this.composer.createEl('label', { text: 'Message to your vault assistant' });
+        this.textInput = label.createEl('textarea', { placeholder: 'Type the same request you would say…', attr: { 'aria-label': 'Message to your vault assistant', rows: '3', maxlength: '8000' } });
+        this.sendButton = this.composer.createEl('button', { text: 'Send message', cls: 'mod-cta', attr: { type: 'submit' } });
+        this.composer.createEl('p', { cls: 'fjgduo-vault-live-caption', text: 'Same conversation, AI tools and spoken replies as voice. Enter sends; Shift+Enter adds a line. Clear requested edits save immediately.' });
+        this.composer.addEventListener('submit', event => { event.preventDefault(); void this.sendText(); });
+        this.textInput.addEventListener('keydown', event => {
+            if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+                event.preventDefault();
+                void this.sendText();
+            }
+        });
         this.audio = root.createEl('audio', { attr: { controls: '', autoplay: '', 'aria-label': 'Assistant voice playback' } });
         this.transcript = root.createDiv({ cls: 'fjgduo-vault-live-transcript', attr: { role: 'log', 'aria-label': 'Conversation', 'aria-live': 'polite' } });
         this.transcript.createEl('p', { cls: 'fjgduo-vault-live-caption', text: 'Try: “Find my notes about summer planning” or “Add this thought to my meeting note.”' });
@@ -7215,14 +7367,47 @@ class VaultVoiceModal extends obsidian.Modal {
             throw new Error('The note no longer exists.');
         return file;
     }
-    start() {
-        var _a, _b;
+    sendText() {
+        var _a;
+        return __awaiter(this, void 0, void 0, function* () {
+            if (this.closed || this.sendButton.disabled)
+                return;
+            const text = this.textInput.value.trim();
+            if (!text) {
+                this.status.setText('Type a message first.');
+                this.textInput.focus();
+                return;
+            }
+            if ((_a = this.session) === null || _a === void 0 ? void 0 : _a.active) {
+                try {
+                    this.lastSpeaker = '';
+                    this.session.sendText(text);
+                    this.textInput.value = '';
+                    this.status.setText('Message sent. Waiting for the assistant…');
+                }
+                catch (error) {
+                    this.status.setText(error instanceof Error ? error.message : 'Could not send the message.');
+                }
+                return;
+            }
+            this.pendingText = text;
+            yield this.start(true);
+        });
+    }
+    start(textOnly = false) {
+        var _a, _b, _c;
         return __awaiter(this, void 0, void 0, function* () {
             if (this.closed || this.startButton.disabled)
                 return;
+            if (((_a = this.session) === null || _a === void 0 ? void 0 : _a.active) && this.session.isTextOnly && !textOnly) {
+                this.startButton.disabled = true;
+                yield this.session.enableMicrophone();
+                return;
+            }
             this.startButton.disabled = true;
-            (_a = this.session) === null || _a === void 0 ? void 0 : _a.dispose();
+            (_b = this.session) === null || _b === void 0 ? void 0 : _b.dispose();
             this.muted = false;
+            this.backendBusy = false;
             this.muteButton.setText('Mute microphone');
             this.muteButton.setAttribute('aria-pressed', 'false');
             this.lastSpeaker = '';
@@ -7262,6 +7447,7 @@ class VaultVoiceModal extends obsidian.Modal {
             });
             session = new VaultLiveSession(this.audio, {
                 state: (state, message) => this.setState(state, message),
+                busy: busy => { this.backendBusy = busy; this.refreshSend(); },
                 inputStatus: message => { if (!this.closed)
                     this.inputStatus.setText(message); },
                 transcript: (speaker, delta) => this.addTranscript(speaker, delta),
@@ -7275,10 +7461,10 @@ class VaultVoiceModal extends obsidian.Modal {
                     return;
                 const context = JSON.stringify({ vault: this.app.vault.getName(), local_date: new Date().toLocaleDateString('en-CA'),
                     time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone, selected_folder: this.voiceSelection.folder,
-                    selected_note: this.voiceSelection.note || ((_b = this.app.workspace.getActiveFile()) === null || _b === void 0 ? void 0 : _b.path) || '', search_scope: 'Entire vault unless the user requests a folder' });
-                yield session.start(key, this.plugin.settings.liveBackendModel, context);
+                    selected_note: this.voiceSelection.note || ((_c = this.app.workspace.getActiveFile()) === null || _c === void 0 ? void 0 : _c.path) || '', search_scope: 'Entire vault unless the user requests a folder' });
+                yield session.start(key, this.plugin.settings.liveBackendModel, context, textOnly);
             }
-            catch (_c) {
+            catch (_d) {
                 session.dispose();
                 this.setState('error', 'Could not read the saved key. Check the Vault voice API key in File Focus Duo settings; no connection was made.');
             }
@@ -7286,16 +7472,41 @@ class VaultVoiceModal extends obsidian.Modal {
     }
     onClose() { var _a, _b; this.closed = true; (_a = this.resultsModal) === null || _a === void 0 ? void 0 : _a.close(); (_b = this.session) === null || _b === void 0 ? void 0 : _b.end(); this.release(); }
     shutdown() { var _a, _b; (_a = this.session) === null || _a === void 0 ? void 0 : _a.end(); (_b = this.session) === null || _b === void 0 ? void 0 : _b.dispose(); this.close(); }
+    refreshSend() {
+        if (!this.sendButton || this.closed)
+            return;
+        const connecting = ['connecting', 'ending'].includes(this.status.dataset.state || '');
+        this.sendButton.disabled = connecting || this.backendBusy;
+        this.sendButton.setText(this.backendBusy ? 'Assistant working…' : connecting ? 'Connecting…' : 'Send message');
+    }
     setState(state, message) {
+        var _a, _b, _c;
         if (this.closed)
             return;
         this.status.setText(message);
         this.status.dataset.state = state;
-        this.startButton.setText(state === "connecting" ? "Connecting…" : state === "connected" ? "Conversation active" : this.startLabel());
+        this.startButton.setText(state === "connecting" ? "Connecting…" : state === "connected" ? (((_a = this.session) === null || _a === void 0 ? void 0 : _a.isTextOnly) ? 'Turn on microphone' : 'Conversation active') : this.startLabel());
         this.status.setAttribute("aria-busy", String(state === "connecting"));
-        this.startButton.disabled = ['connecting', 'connected', 'ending'].includes(state);
-        this.muteButton.disabled = state !== 'connected';
+        this.startButton.disabled = ['connecting', 'ending'].includes(state) || (state === 'connected' && !((_b = this.session) === null || _b === void 0 ? void 0 : _b.isTextOnly));
+        this.muteButton.disabled = state !== 'connected' || !!((_c = this.session) === null || _c === void 0 ? void 0 : _c.isTextOnly);
         this.endButton.disabled = !['connecting', 'connected'].includes(state);
+        if (state === 'connected' && this.pendingText) {
+            const text = this.pendingText;
+            this.pendingText = '';
+            try {
+                this.lastSpeaker = '';
+                this.session.sendText(text);
+                this.textInput.value = '';
+            }
+            catch (error) {
+                this.status.setText(error instanceof Error ? error.message : 'Could not send the message.');
+            }
+        }
+        if (['error', 'ended'].includes(state)) {
+            this.pendingText = '';
+            this.backendBusy = false;
+        }
+        this.refreshSend();
     }
     addSource(path) {
         if (this.closed || this.sourcePaths.has(path))
