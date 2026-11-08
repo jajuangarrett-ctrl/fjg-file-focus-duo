@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { canRead, editBody, noteRevision, vaultPath, VaultLiveTools, type VaultPort } from '../src/live/vault-tools.ts';
+import { canRead, editBody, noteRevision, searchVaultLocally, vaultPath, VaultLiveTools, type VaultPort } from '../src/live/vault-tools.ts';
 
 function fixture(initial: Record<string, string> = {}) {
   const files = new Map(Object.entries(initial));
@@ -86,4 +86,21 @@ test('ranked search scans beyond early matches, respects deep scope and reports 
  assert.equal(scoped.matches.length,1);assert.equal(scoped.skipped_this_page,1);assert.match(scoped.coverage,/Z\/Deep/);
  const page=await f.call('search_vault',{query:'budget',folder:'Early',mode:'contents',offset:440}) as any;
  assert.equal(page.matches.length,10);assert.equal(page.next_offset,null);assert.equal(page.scanned_files,450);
+});
+
+
+test('typed search is read-only and does not require an active voice session', async () => {
+  const f = fixture({ 'Notes/Plan.md': 'Summer program planning', 'Files/Summer.pdf': 'binary', '.obsidian/Hidden.md': 'Summer', 'Secrets.md': 'Summer' });
+  f.stop();
+  const result = await searchVaultLocally({ files: f.port.files, read: f.port.read }, { query: 'summer', folder: '', mode: 'contents', offset: 0 });
+  assert.deepEqual(result.matches.map(item => item.path), ['Notes/Plan.md']);
+  assert.equal(f.changes.length, 0); assert.equal(f.sources.length, 0);
+  const names = await searchVaultLocally({ files: f.port.files, read: async () => { throw Error('Filename search must not read file content'); } }, { query: 'summer', folder: '', mode: 'filenames', offset: 0 });
+  assert.equal(names.matches[0].path, 'Files/Summer.pdf');
+});
+
+test('typed search cancels during an outstanding read and never returns late results', async () => {
+  let cancelled = false;
+  await assert.rejects(searchVaultLocally({ files: () => [{ path: 'Notes/Plan.md', size: 10 }], read: async () => { cancelled = true; return 'summer'; } },
+    { query: 'summer', folder: '', mode: 'contents', offset: 0 }, () => { if (cancelled) throw Error('cancelled'); }), /cancelled/);
 });
