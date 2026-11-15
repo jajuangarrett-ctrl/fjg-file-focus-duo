@@ -1,8 +1,11 @@
-import { TFolder, Notice, Platform } from 'obsidian';
+import { TFolder, Notice } from 'obsidian';
 import React, { useState, useMemo, useEffect } from 'react';
 import FileTreeAlternativePlugin from 'main';
+import { FaFolder, FaFolderOpen, FaChevronRight } from 'react-icons/fa';
+import { createFolderTap } from '../../../folderTap';
+import { FOLDER_SELECTED } from '../../MainView/duoActions';
 import Dropzone from 'react-dropzone';
-import { getFolderIcon, IoMdArrowDropright } from 'utils/icons';
+import { IoMdArrowDropright } from 'utils/icons';
 import * as recoilState from 'recoil/pluginState';
 import { useRecoilState } from 'recoil';
 import useLongPress from 'hooks/useLongPress';
@@ -26,10 +29,30 @@ export default function Tree(props: TreeProps) {
     // Global States
     const [openFolders, setOpenFolders] = useRecoilState(recoilState.openFolders);
     const [folderFileCountMap] = useRecoilState(recoilState.folderFileCountMap);
-    const [activeFolderPath] = useRecoilState(recoilState.activeFolderPath);
+    const [activeFolderPath, setActiveFolderPath] = useRecoilState(recoilState.activeFolderPath);
 
+    const [, setFocusedFolder] = useRecoilState(recoilState.focusedFolder);
+    const [, setTopFocus] = useRecoilState(recoilState.topFolderFocus);
+    const [pending, setPending] = useState(false);
+    const gesture = useMemo(() => createFolderTap(280, setPending), []);
+    useEffect(() => { gesture.cancel(); return gesture.cancel; }, [activeFolderPath, gesture]);
+    // All explicit navigation and nested controls cancel a pending folder activation.
+    useEffect(() => {
+        const cancel = (event: Event) => {
+            const target = event.target as Element;
+            if (!target.closest?.(`[data-path="${CSS.escape(props.folder.path)}"] .fjgduo-folder-block`)) gesture.cancel();
+        };
+        document.addEventListener('pointerdown', cancel, true);
+        return () => document.removeEventListener('pointerdown', cancel, true);
+    }, [gesture, props.folder.path]);
+    const goToParent = () => {
+        const current = props.plugin.app.vault.getAbstractFileByPath(activeFolderPath || '/');
+        if (!(current instanceof TFolder) || !current.parent) return;
+        setTopFocus(false); setFocusedFolder(current.parent); setActiveFolderPath(current.parent.path);
+        window.dispatchEvent(new CustomEvent(FOLDER_SELECTED, { detail: current.parent }));
+    };
     const longPressEvents = useLongPress((e: React.TouchEvent) => {
-        props.onContextMenu(e);
+        gesture.cancel(); props.onContextMenu(e);
     }, 500);
 
     // Local States
@@ -70,22 +93,20 @@ export default function Tree(props: TreeProps) {
     // --> Click Events
     const folderNameClickEvent = (ev: React.MouseEvent) => {
         if (props.plugin.settings.folderNote && ev.shiftKey) {
+            gesture.cancel();
             const fileFullPath = `${props.folder.path}/${props.folder.name}.md`;
             const folderNoteFile = props.plugin.app.vault.getAbstractFileByPath(fileFullPath);
             props.plugin.app.workspace.openLinkText(fileFullPath, '/', false);
         } else {
-            props.onClick();
+            if (ev.detail === 0) { gesture.cancel(); props.onClick(); }
+            else gesture.tap(() => props.onClick(), goToParent);
         }
     };
-    const folderContextMenuEvent = (e: React.MouseEvent) => { e.preventDefault(); props.onContextMenu(e); };
+    const folderContextMenuEvent = (e: React.MouseEvent) => { gesture.cancel(); e.preventDefault(); props.onContextMenu(e); };
 
     const folderNameDoubleClickEvent = (ev: React.MouseEvent) => {
-        setOpen(true);
-        props.onDoubleClick();
+        ev.preventDefault(); // The two click events already resolved the gesture.
     };
-
-    // --> Icon
-    const Icon = useMemo(() => getFolderIcon(props.plugin, props.children, open), [open, props.children, props.plugin.settings.folderIcon]);
 
     // --> Folder Count Map
     const folderCount = folderFileCountMap[props.folder.path];
@@ -126,6 +147,7 @@ export default function Tree(props: TreeProps) {
     };
 
     const onFolderDragStart = (e: React.DragEvent<HTMLDivElement>, folder: TFolder) => {
+        gesture.cancel();
         e.dataTransfer.setData('application/json', JSON.stringify({ folderPath: folder.path }));
 
         let dragManager = (props.plugin.app as any).dragManager;
@@ -164,18 +186,19 @@ export default function Tree(props: TreeProps) {
                             <input {...getInputProps()} />
 
                             <div className="fjgduo-folder-line">
-                                <div className="fjgduo-icon-div" data-ignore-swipe="true" role="button" tabIndex={0} aria-label={`Expand or collapse ${props.folder.name}`} aria-expanded={open} onClick={Platform.isMobile ? toggle : undefined} onKeyDown={e=>{if(e.key === 'Enter'||e.key === ' '){e.preventDefault();toggle();}}}>
-                                    <Icon className="fjgduo-folder-toggle" style={{ opacity: props.children ? 1 : 0.3 }} onClick={Platform.isMobile ? undefined : toggle} />
-                                </div>
+                                {props.children && <button className="fjgduo-icon-div" data-ignore-swipe="true" aria-label={`Expand or collapse ${props.folder.name}`} aria-expanded={open} onClick={e => {e.stopPropagation(); gesture.cancel(); toggle();}}>
+                                    <FaChevronRight className="fjgduo-expand-chevron" aria-hidden="true" />
+                                </button>}
 
                                 <div
-                                    className="fjgduo-folder-block"
+                                    className={`fjgduo-folder-block${pending ? ' is-tap-pending' : ''}`}
                                     data-ignore-swipe="true"
-                                    role="button" tabIndex={0} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();props.onClick();}}}
+                                    role="button" tabIndex={0} aria-label={`Open ${props.folder.name} folder`} title="Tap to open; double-tap to go up one folder" onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();gesture.cancel();props.onClick();}else if(e.key==='ArrowLeft'){e.preventDefault();gesture.cancel();goToParent();}}}
                                     onClick={folderNameClickEvent}
                                     onDoubleClick={folderNameDoubleClickEvent}
                                     onContextMenu={folderContextMenuEvent}
                                     {...longPressEvents}>
+                                    {isFolderActive || open ? <FaFolderOpen className="fjgduo-folder-glyph" aria-hidden="true"/> : <FaFolder className="fjgduo-folder-glyph" aria-hidden="true"/>}
                                     <div className="fjgduo-folder-type" style={{ marginRight: props.type ? 10 : 0 }}>
                                         {props.type}
                                     </div>

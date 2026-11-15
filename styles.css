@@ -1123,3 +1123,20 @@ body.is-mobile .workspace-drawer.mod-left:has(.workspace-leaf.mod-active .duo-na
 .fjgduo-vault-live-composer button { min-height:44px; }
 .fjgduo-vault-live-composer p { flex:1 1 100%; margin:0; }
 .fjgduo-vault-live-modal.is-compact .fjgduo-vault-live-composer { max-height:22dvh; overflow:auto; }
+
+/* 0.1.13: recognizable folders and dense, deliberate touch navigation. */
+.duo-navigator .fjgduo-folder-block { min-width:0; min-height:44px; align-items:center; padding:0 8px; gap:8px; cursor:pointer; touch-action:manipulation; }
+.duo-navigator .fjgduo-folder-block:is(:active,.is-tap-pending) { background:var(--background-modifier-hover); border-radius:6px; }
+.duo-navigator .fjgduo-folder-glyph { width:26px; height:26px; flex:0 0 26px; color:var(--fjgduo-folder-icon-color); opacity:1; }
+.duo-navigator button.fjgduo-icon-div { display:flex; align-items:center; justify-content:center; min-width:44px; width:44px; height:44px; padding:0; margin:0; flex:0 0 44px; background:transparent; border:0; box-shadow:none; touch-action:manipulation; }
+.duo-navigator .fjgduo-expand-chevron { width:14px; height:14px; color:var(--text-muted); transition:transform .12s; }
+.duo-navigator [aria-expanded=true] .fjgduo-expand-chevron { transform:rotate(90deg); }
+.duo-navigator .duo-icon-row { justify-content:flex-start; gap:0; }
+.duo-navigator .duo-toolbar button { touch-action:manipulation; }
+.duo-navigator .duo-toolbar button svg { width:24px; height:24px; }
+.duo-navigator .duo-toolbar .duo-back svg { width:28px; height:28px; flex-basis:28px; color:var(--interactive-accent); }
+.duo-navigator .duo-main-scroll { display:flex; flex-direction:column; }
+.duo-navigator .duo-toolbar,.duo-navigator .duo-panel-switch { flex-shrink:0; }
+.duo-navigator.duo-wide .duo-columns { flex:1 1 auto; height:auto !important; min-height:0; }
+.duo-navigator.duo-compact .duo-columns { flex:none; }
+.duo-navigator.duo-root-folders-only .duo-folder-column { height:auto; }

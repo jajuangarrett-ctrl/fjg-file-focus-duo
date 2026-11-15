@@ -1609,6 +1609,28 @@ class DuoPreview extends obsidian.Modal {
 const FOLDER_SELECTED = 'fjgduo-folder-selected';
 const FOCUS_SEARCH = 'fjgduo-focus-search';
 
+// THIS FILE IS AUTO GENERATED
+function FaArrowCircleLeft(props){return GenIcon({"attr":{"viewBox":"0 0 512 512"},"child":[{"tag":"path","attr":{"d":"M256 504C119 504 8 393 8 256S119 8 256 8s248 111 248 248-111 248-248 248zm28.9-143.6L209.4 288H392c13.3 0 24-10.7 24-24v-16c0-13.3-10.7-24-24-24H209.4l75.5-72.4c9.7-9.3 9.9-24.8.4-34.3l-11-10.9c-9.4-9.4-24.6-9.4-33.9 0L107.7 239c-9.4 9.4-9.4 24.6 0 33.9l132.7 132.7c9.4 9.4 24.6 9.4 33.9 0l11-10.9c9.5-9.5 9.3-25-.4-34.3z"}}]})(props);}function FaChevronRight(props){return GenIcon({"attr":{"viewBox":"0 0 320 512"},"child":[{"tag":"path","attr":{"d":"M285.476 272.971L91.132 467.314c-9.373 9.373-24.569 9.373-33.941 0l-22.667-22.667c-9.357-9.357-9.375-24.522-.04-33.901L188.505 256 34.484 101.255c-9.335-9.379-9.317-24.544.04-33.901l22.667-22.667c9.373-9.373 24.569-9.373 33.941 0L285.475 239.03c9.373 9.372 9.373 24.568.001 33.941z"}}]})(props);}function FaFolderOpen(props){return GenIcon({"attr":{"viewBox":"0 0 576 512"},"child":[{"tag":"path","attr":{"d":"M572.694 292.093L500.27 416.248A63.997 63.997 0 0 1 444.989 448H45.025c-18.523 0-30.064-20.093-20.731-36.093l72.424-124.155A64 64 0 0 1 152 256h399.964c18.523 0 30.064 20.093 20.73 36.093zM152 224h328v-48c0-26.51-21.49-48-48-48H272l-64-64H48C21.49 64 0 85.49 0 112v278.046l69.077-118.418C86.214 242.25 117.989 224 152 224z"}}]})(props);}function FaFolder(props){return GenIcon({"attr":{"viewBox":"0 0 512 512"},"child":[{"tag":"path","attr":{"d":"M464 128H272l-64-64H48C21.49 64 0 85.49 0 112v288c0 26.51 21.49 48 48 48h416c26.51 0 48-21.49 48-48V176c0-26.51-21.49-48-48-48z"}}]})(props);}function FaGlobe(props){return GenIcon({"attr":{"viewBox":"0 0 496 512"},"child":[{"tag":"path","attr":{"d":"M336.5 160C322 70.7 287.8 8 248 8s-74 62.7-88.5 152h177zM152 256c0 22.2 1.2 43.5 3.3 64h185.3c2.1-20.5 3.3-41.8 3.3-64s-1.2-43.5-3.3-64H155.3c-2.1 20.5-3.3 41.8-3.3 64zm324.7-96c-28.6-67.9-86.5-120.4-158-141.6 24.4 33.8 41.2 84.7 50 141.6h108zM177.2 18.4C105.8 39.6 47.8 92.1 19.3 160h108c8.7-56.9 25.5-107.8 49.9-141.6zM487.4 192H372.7c2.1 21 3.3 42.5 3.3 64s-1.2 43-3.3 64h114.6c5.5-20.5 8.6-41.8 8.6-64s-3.1-43.5-8.5-64zM120 256c0-21.5 1.2-43 3.3-64H8.6C3.2 212.5 0 233.8 0 256s3.2 43.5 8.6 64h114.6c-2-21-3.2-42.5-3.2-64zm39.5 96c14.5 89.3 48.7 152 88.5 152s74-62.7 88.5-152h-177zm159.3 141.6c71.4-21.2 129.4-73.7 158-141.6h-108c-8.8 56.9-25.6 107.8-50 141.6zM19.3 352c28.6 67.9 86.5 120.4 158 141.6-24.4-33.8-41.2-84.7-50-141.6h-108z"}}]})(props);}function FaHistory(props){return GenIcon({"attr":{"viewBox":"0 0 512 512"},"child":[{"tag":"path","attr":{"d":"M504 255.531c.253 136.64-111.18 248.372-247.82 248.468-59.015.042-113.223-20.53-155.822-54.911-11.077-8.94-11.905-25.541-1.839-35.607l11.267-11.267c8.609-8.609 22.353-9.551 31.891-1.984C173.062 425.135 212.781 440 256 440c101.705 0 184-82.311 184-184 0-101.705-82.311-184-184-184-48.814 0-93.149 18.969-126.068 49.932l50.754 50.754c10.08 10.08 2.941 27.314-11.313 27.314H24c-8.837 0-16-7.163-16-16V38.627c0-14.254 17.234-21.393 27.314-11.314l49.372 49.372C129.209 34.136 189.552 8 256 8c136.81 0 247.747 110.78 248 247.531zm-180.912 78.784l9.823-12.63c8.138-10.463 6.253-25.542-4.21-33.679L288 256.349V152c0-13.255-10.745-24-24-24h-16c-13.255 0-24 10.745-24 24v135.651l65.409 50.874c10.463 8.137 25.541 6.253 33.679-4.21z"}}]})(props);}function FaHome(props){return GenIcon({"attr":{"viewBox":"0 0 576 512"},"child":[{"tag":"path","attr":{"d":"M280.37 148.26L96 300.11V464a16 16 0 0 0 16 16l112.06-.29a16 16 0 0 0 15.92-16V368a16 16 0 0 1 16-16h64a16 16 0 0 1 16 16v95.64a16 16 0 0 0 16 16.05L464 480a16 16 0 0 0 16-16V300L295.67 148.26a12.19 12.19 0 0 0-15.3 0zM571.6 251.47L488 182.56V44.05a12 12 0 0 0-12-12h-56a12 12 0 0 0-12 12v72.61L318.47 43a48 48 0 0 0-61 0L4.34 251.47a12 12 0 0 0-1.6 16.9l25.5 31A12 12 0 0 0 45.15 301l235.22-193.74a12.19 12.19 0 0 1 15.3 0L530.9 301a12 12 0 0 0 16.9-1.6l25.5-31a12 12 0 0 0-1.7-16.93z"}}]})(props);}function FaProjectDiagram(props){return GenIcon({"attr":{"viewBox":"0 0 640 512"},"child":[{"tag":"path","attr":{"d":"M384 320H256c-17.67 0-32 14.33-32 32v128c0 17.67 14.33 32 32 32h128c17.67 0 32-14.33 32-32V352c0-17.67-14.33-32-32-32zM192 32c0-17.67-14.33-32-32-32H32C14.33 0 0 14.33 0 32v128c0 17.67 14.33 32 32 32h95.72l73.16 128.04C211.98 300.98 232.4 288 256 288h.28L192 175.51V128h224V64H192V32zM608 0H480c-17.67 0-32 14.33-32 32v128c0 17.67 14.33 32 32 32h128c17.67 0 32-14.33 32-32V32c0-17.67-14.33-32-32-32z"}}]})(props);}function FaTags(props){return GenIcon({"attr":{"viewBox":"0 0 640 512"},"child":[{"tag":"path","attr":{"d":"M497.941 225.941L286.059 14.059A48 48 0 0 0 252.118 0H48C21.49 0 0 21.49 0 48v204.118a48 48 0 0 0 14.059 33.941l211.882 211.882c18.744 18.745 49.136 18.746 67.882 0l204.118-204.118c18.745-18.745 18.745-49.137 0-67.882zM112 160c-26.51 0-48-21.49-48-48s21.49-48 48-48 48 21.49 48 48-21.49 48-48 48zm513.941 133.823L421.823 497.941c-18.745 18.745-49.137 18.745-67.882 0l-.36-.36L527.64 323.522c16.999-16.999 26.36-39.6 26.36-63.64s-9.362-46.641-26.36-63.64L331.397 0h48.721a48 48 0 0 1 33.941 14.059l211.882 211.882c18.745 18.745 18.745 49.137 0 67.882z"}}]})(props);}function FaThumbtack(props){return GenIcon({"attr":{"viewBox":"0 0 384 512"},"child":[{"tag":"path","attr":{"d":"M298.028 214.267L285.793 96H328c13.255 0 24-10.745 24-24V24c0-13.255-10.745-24-24-24H56C42.745 0 32 10.745 32 24v48c0 13.255 10.745 24 24 24h42.207L85.972 214.267C37.465 236.82 0 277.261 0 328c0 13.255 10.745 24 24 24h136v104.007c0 1.242.289 2.467.845 3.578l24 48c2.941 5.882 11.364 5.893 14.311 0l24-48a8.008 8.008 0 0 0 .845-3.578V352h136c13.255 0 24-10.745 24-24-.001-51.183-37.983-91.42-85.973-113.733z"}}]})(props);}function FaTrash(props){return GenIcon({"attr":{"viewBox":"0 0 448 512"},"child":[{"tag":"path","attr":{"d":"M432 32H312l-9.4-18.7A24 24 0 0 0 281.1 0H166.8a23.72 23.72 0 0 0-21.4 13.3L136 32H16A16 16 0 0 0 0 48v32a16 16 0 0 0 16 16h416a16 16 0 0 0 16-16V48a16 16 0 0 0-16-16zM53.2 467a48 48 0 0 0 47.9 45h245.8a48 48 0 0 0 47.9-45L416 128H32z"}}]})(props);}function FaRegBookmark(props){return GenIcon({"attr":{"viewBox":"0 0 384 512"},"child":[{"tag":"path","attr":{"d":"M336 0H48C21.49 0 0 21.49 0 48v464l192-112 192 112V48c0-26.51-21.49-48-48-48zm0 428.43l-144-84-144 84V54a6 6 0 0 1 6-6h276c3.314 0 6 2.683 6 5.996V428.43z"}}]})(props);}
+
+/** Delay only pointer clicks so a double tap never opens the child first. */
+function createFolderTap(delay = 280, feedback = () => { }) {
+    let timer = null;
+    const cancel = () => { if (timer !== null)
+        clearTimeout(timer); timer = null; feedback(false); };
+    return {
+        cancel,
+        tap(open, parent) {
+            if (timer !== null) {
+                cancel();
+                parent();
+                return;
+            }
+            feedback(true);
+            timer = setTimeout(() => { timer = null; feedback(false); open(); }, delay);
+        },
+    };
+}
+
 var propTypes = {exports: {}};
 
 /**
@@ -2055,19 +2077,10 @@ if(isIeOrEdge()){setTimeout(openFileDialog,0);}else {openFileDialog();}},[noClic
  */function reducer(state,action){/* istanbul ignore next */switch(action.type){case "focus":return _objectSpread(_objectSpread({},state),{},{isFocused:true});case "blur":return _objectSpread(_objectSpread({},state),{},{isFocused:false});case "openDialog":return _objectSpread(_objectSpread({},initialState),{},{isFileDialogActive:true});case "closeDialog":return _objectSpread(_objectSpread({},state),{},{isFileDialogActive:false});case "setDraggedFiles":return _objectSpread(_objectSpread({},state),{},{isDragActive:action.isDragActive,isDragAccept:action.isDragAccept,isDragReject:action.isDragReject});case "setFiles":return _objectSpread(_objectSpread({},state),{},{acceptedFiles:action.acceptedFiles,fileRejections:action.fileRejections});case "reset":return _objectSpread({},initialState);default:return state;}}function noop(){}
 
 // THIS FILE IS AUTO GENERATED
-function BiCopy(props){return GenIcon({"attr":{"viewBox":"0 0 24 24"},"child":[{"tag":"path","attr":{"d":"M20 2H10c-1.103 0-2 .897-2 2v4H4c-1.103 0-2 .897-2 2v10c0 1.103.897 2 2 2h10c1.103 0 2-.897 2-2v-4h4c1.103 0 2-.897 2-2V4c0-1.103-.897-2-2-2zM4 20V10h10l.002 10H4zm16-6h-4v-4c0-1.103-.897-2-2-2h-4V4h10v10z"}}]})(props);}function BiCurrentLocation(props){return GenIcon({"attr":{"viewBox":"0 0 24 24"},"child":[{"tag":"circle","attr":{"cx":"12","cy":"12","r":"4"}},{"tag":"path","attr":{"d":"M13 4.069V2h-2v2.069A8.01 8.01 0 0 0 4.069 11H2v2h2.069A8.008 8.008 0 0 0 11 19.931V22h2v-2.069A8.007 8.007 0 0 0 19.931 13H22v-2h-2.069A8.008 8.008 0 0 0 13 4.069zM12 18c-3.309 0-6-2.691-6-6s2.691-6 6-6 6 2.691 6 6-2.691 6-6 6z"}}]})(props);}function BiFile(props){return GenIcon({"attr":{"viewBox":"0 0 24 24"},"child":[{"tag":"path","attr":{"d":"M19.903 8.586a.997.997 0 0 0-.196-.293l-6-6a.997.997 0 0 0-.293-.196c-.03-.014-.062-.022-.094-.033a.991.991 0 0 0-.259-.051C13.04 2.011 13.021 2 13 2H6c-1.103 0-2 .897-2 2v16c0 1.103.897 2 2 2h12c1.103 0 2-.897 2-2V9c0-.021-.011-.04-.013-.062a.952.952 0 0 0-.051-.259c-.01-.032-.019-.063-.033-.093zM16.586 8H14V5.414L16.586 8zM6 20V4h6v5a1 1 0 0 0 1 1h5l.002 10H6z"}},{"tag":"path","attr":{"d":"M8 12h8v2H8zm0 4h8v2H8zm0-8h2v2H8z"}}]})(props);}function BiFolderMinus(props){return GenIcon({"attr":{"viewBox":"0 0 24 24"},"child":[{"tag":"path","attr":{"d":"M20 5h-8.586L9.707 3.293A.996.996 0 0 0 9 3H4c-1.103 0-2 .897-2 2v14c0 1.103.897 2 2 2h16c1.103 0 2-.897 2-2V7c0-1.103-.897-2-2-2zM4 19V7h16l.002 12H4z"}},{"tag":"path","attr":{"d":"M7.874 12h8v2h-8z"}}]})(props);}function BiFolderPlus(props){return GenIcon({"attr":{"viewBox":"0 0 24 24"},"child":[{"tag":"path","attr":{"d":"M13 9h-2v3H8v2h3v3h2v-3h3v-2h-3z"}},{"tag":"path","attr":{"d":"M20 5h-8.586L9.707 3.293A.996.996 0 0 0 9 3H4c-1.103 0-2 .897-2 2v14c0 1.103.897 2 2 2h16c1.103 0 2-.897 2-2V7c0-1.103-.897-2-2-2zM4 19V7h16l.002 12H4z"}}]})(props);}function BiFolder(props){return GenIcon({"attr":{"viewBox":"0 0 24 24"},"child":[{"tag":"path","attr":{"d":"M20 5h-8.586L9.707 3.293A.997.997 0 0 0 9 3H4c-1.103 0-2 .897-2 2v14c0 1.103.897 2 2 2h16c1.103 0 2-.897 2-2V7c0-1.103-.897-2-2-2zM4 19V7h16l.002 12H4z"}}]})(props);}
+function BiCopy(props){return GenIcon({"attr":{"viewBox":"0 0 24 24"},"child":[{"tag":"path","attr":{"d":"M20 2H10c-1.103 0-2 .897-2 2v4H4c-1.103 0-2 .897-2 2v10c0 1.103.897 2 2 2h10c1.103 0 2-.897 2-2v-4h4c1.103 0 2-.897 2-2V4c0-1.103-.897-2-2-2zM4 20V10h10l.002 10H4zm16-6h-4v-4c0-1.103-.897-2-2-2h-4V4h10v10z"}}]})(props);}function BiCurrentLocation(props){return GenIcon({"attr":{"viewBox":"0 0 24 24"},"child":[{"tag":"circle","attr":{"cx":"12","cy":"12","r":"4"}},{"tag":"path","attr":{"d":"M13 4.069V2h-2v2.069A8.01 8.01 0 0 0 4.069 11H2v2h2.069A8.008 8.008 0 0 0 11 19.931V22h2v-2.069A8.007 8.007 0 0 0 19.931 13H22v-2h-2.069A8.008 8.008 0 0 0 13 4.069zM12 18c-3.309 0-6-2.691-6-6s2.691-6 6-6 6 2.691 6 6-2.691 6-6 6z"}}]})(props);}function BiFile(props){return GenIcon({"attr":{"viewBox":"0 0 24 24"},"child":[{"tag":"path","attr":{"d":"M19.903 8.586a.997.997 0 0 0-.196-.293l-6-6a.997.997 0 0 0-.293-.196c-.03-.014-.062-.022-.094-.033a.991.991 0 0 0-.259-.051C13.04 2.011 13.021 2 13 2H6c-1.103 0-2 .897-2 2v16c0 1.103.897 2 2 2h12c1.103 0 2-.897 2-2V9c0-.021-.011-.04-.013-.062a.952.952 0 0 0-.051-.259c-.01-.032-.019-.063-.033-.093zM16.586 8H14V5.414L16.586 8zM6 20V4h6v5a1 1 0 0 0 1 1h5l.002 10H6z"}},{"tag":"path","attr":{"d":"M8 12h8v2H8zm0 4h8v2H8zm0-8h2v2H8z"}}]})(props);}function BiFolder(props){return GenIcon({"attr":{"viewBox":"0 0 24 24"},"child":[{"tag":"path","attr":{"d":"M20 5h-8.586L9.707 3.293A.997.997 0 0 0 9 3H4c-1.103 0-2 .897-2 2v14c0 1.103.897 2 2 2h16c1.103 0 2-.897 2-2V7c0-1.103-.897-2-2-2zM4 19V7h16l.002 12H4z"}}]})(props);}
 
 // THIS FILE IS AUTO GENERATED
-function ImFolder(props){return GenIcon({"attr":{"version":"1.1","viewBox":"0 0 16 16"},"child":[{"tag":"path","attr":{"d":"M7 2l2 2h7v11h-16v-13z"}}]})(props);}function ImFolderPlus(props){return GenIcon({"attr":{"version":"1.1","viewBox":"0 0 16 16"},"child":[{"tag":"path","attr":{"d":"M9 4l-2-2h-7v13h16v-11h-7zM11 11h-2v2h-2v-2h-2v-2h2v-2h2v2h2v2z"}}]})(props);}function ImFolderMinus(props){return GenIcon({"attr":{"version":"1.1","viewBox":"0 0 16 16"},"child":[{"tag":"path","attr":{"d":"M9 4l-2-2h-7v13h16v-11h-7zM11 11h-6v-2h6v2z"}}]})(props);}
-
-// THIS FILE IS AUTO GENERATED
-function TiFolderOpen(props){return GenIcon({"attr":{"version":"1.2","baseProfile":"tiny","viewBox":"0 0 24 24"},"child":[{"tag":"path","attr":{"d":"M22.3 8h-2.4c-.4-1.2-1.5-2-2.8-2h-6c0-1.1-.9-2-2-2h-4.1c-1.7 0-3 1.3-3 3v10c0 1.7 1.3 3 3 3h12c1.7 0 3.4-1.3 3.8-3l2.2-8c.1-.6-.2-1-.7-1zm-18.3 1v-2c0-.6.4-1 1-1h4c0 1.1.9 2 2 2h6c.6 0 1 .4 1 1h-11.1c-.6 0-1.1.4-1.3 1l-1.6 6.3v-7.3zm14.9 7.5c-.2.8-1.1 1.5-1.9 1.5h-12s-.4-.2-.2-.8l1.9-7c0-.1.2-.2.3-.2h13.7l-1.8 6.5z"}}]})(props);}function TiFolder(props){return GenIcon({"attr":{"version":"1.2","baseProfile":"tiny","viewBox":"0 0 24 24"},"child":[{"tag":"path","attr":{"d":"M18 6h-6c0-1.104-.896-2-2-2h-4c-1.654 0-3 1.346-3 3v10c0 1.654 1.346 3 3 3h12c1.654 0 3-1.346 3-3v-8c0-1.654-1.346-3-3-3zm-12 0h4c0 1.104.896 2 2 2h6c.552 0 1 .448 1 1h-14v-2c0-.552.448-1 1-1zm12 12h-12c-.552 0-1-.448-1-1v-7h14v7c0 .552-.448 1-1 1z"}}]})(props);}
-
-// THIS FILE IS AUTO GENERATED
-function CgAdd(props){return GenIcon({"attr":{"viewBox":"0 0 24 24","fill":"none"},"child":[{"tag":"path","attr":{"fillRule":"evenodd","clipRule":"evenodd","d":"M2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12ZM12 4C7.58172 4 4 7.58172 4 12C4 16.4183 7.58172 20 12 20C16.4183 20 20 16.4183 20 12C20 7.58172 16.4183 4 12 4Z","fill":"currentColor"}},{"tag":"path","attr":{"fillRule":"evenodd","clipRule":"evenodd","d":"M13 7C13 6.44772 12.5523 6 12 6C11.4477 6 11 6.44772 11 7V11H7C6.44772 11 6 11.4477 6 12C6 12.5523 6.44772 13 7 13H11V17C11 17.5523 11.4477 18 12 18C12.5523 18 13 17.5523 13 17V13H17C17.5523 13 18 12.5523 18 12C18 11.4477 17.5523 11 17 11H13V7Z","fill":"currentColor"}}]})(props);}function CgChevronDoubleDown(props){return GenIcon({"attr":{"viewBox":"0 0 24 24","fill":"none"},"child":[{"tag":"path","attr":{"d":"M7.75735 5.63605L6.34314 7.05026L12 12.7071L17.6569 7.05029L16.2427 5.63608L12 9.87872L7.75735 5.63605Z","fill":"currentColor"}},{"tag":"path","attr":{"d":"M6.34314 12.7071L7.75735 11.2929L12 15.5356L16.2427 11.2929L17.6569 12.7071L12 18.364L6.34314 12.7071Z","fill":"currentColor"}}]})(props);}function CgChevronDoubleUp(props){return GenIcon({"attr":{"viewBox":"0 0 24 24","fill":"none"},"child":[{"tag":"path","attr":{"d":"M17.6569 11.2929L16.2427 12.7071L12 8.46444L7.75735 12.7071L6.34314 11.2929L12 5.63605L17.6569 11.2929Z","fill":"currentColor"}},{"tag":"path","attr":{"d":"M17.6569 16.9497L16.2427 18.3639L12 14.1213L7.75735 18.364L6.34314 16.9498L12 11.2929L17.6569 16.9497Z","fill":"currentColor"}}]})(props);}function CgCloseO(props){return GenIcon({"attr":{"viewBox":"0 0 24 24","fill":"none"},"child":[{"tag":"path","attr":{"d":"M16.3394 9.32245C16.7434 8.94589 16.7657 8.31312 16.3891 7.90911C16.0126 7.50509 15.3798 7.48283 14.9758 7.85938L12.0497 10.5866L9.32245 7.66048C8.94589 7.25647 8.31312 7.23421 7.90911 7.61076C7.50509 7.98731 7.48283 8.62008 7.85938 9.0241L10.5866 11.9502L7.66048 14.6775C7.25647 15.054 7.23421 15.6868 7.61076 16.0908C7.98731 16.4948 8.62008 16.5171 9.0241 16.1405L11.9502 13.4133L14.6775 16.3394C15.054 16.7434 15.6868 16.7657 16.0908 16.3891C16.4948 16.0126 16.5171 15.3798 16.1405 14.9758L13.4133 12.0497L16.3394 9.32245Z","fill":"currentColor"}},{"tag":"path","attr":{"fillRule":"evenodd","clipRule":"evenodd","d":"M1 12C1 5.92487 5.92487 1 12 1C18.0751 1 23 5.92487 23 12C23 18.0751 18.0751 23 12 23C5.92487 23 1 18.0751 1 12ZM12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21Z","fill":"currentColor"}}]})(props);}function CgRemove(props){return GenIcon({"attr":{"viewBox":"0 0 24 24","fill":"none"},"child":[{"tag":"path","attr":{"d":"M8 11C7.44772 11 7 11.4477 7 12C7 12.5523 7.44772 13 8 13H16C16.5523 13 17 12.5523 17 12C17 11.4477 16.5523 11 16 11H8Z","fill":"currentColor"}},{"tag":"path","attr":{"fillRule":"evenodd","clipRule":"evenodd","d":"M23 12C23 18.0751 18.0751 23 12 23C5.92487 23 1 18.0751 1 12C1 5.92487 5.92487 1 12 1C18.0751 1 23 5.92487 23 12ZM21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z","fill":"currentColor"}}]})(props);}function CgSortAz(props){return GenIcon({"attr":{"viewBox":"0 0 24 24","fill":"none"},"child":[{"tag":"path","attr":{"d":"M6 8C6 7.44772 6.44772 7 7 7H17C17.5523 7 18 7.44772 18 8C18 8.55228 17.5523 9 17 9H7C6.44772 9 6 8.55228 6 8Z","fill":"currentColor"}},{"tag":"path","attr":{"d":"M8 12C8 11.4477 8.44772 11 9 11H15C15.5523 11 16 11.4477 16 12C16 12.5523 15.5523 13 15 13H9C8.44772 13 8 12.5523 8 12Z","fill":"currentColor"}},{"tag":"path","attr":{"d":"M11 15C10.4477 15 10 15.4477 10 16C10 16.5523 10.4477 17 11 17H13C13.5523 17 14 16.5523 14 16C14 15.4477 13.5523 15 13 15H11Z","fill":"currentColor"}}]})(props);}
-
-// THIS FILE IS AUTO GENERATED
-function FaArrowCircleLeft(props){return GenIcon({"attr":{"viewBox":"0 0 512 512"},"child":[{"tag":"path","attr":{"d":"M256 504C119 504 8 393 8 256S119 8 256 8s248 111 248 248-111 248-248 248zm28.9-143.6L209.4 288H392c13.3 0 24-10.7 24-24v-16c0-13.3-10.7-24-24-24H209.4l75.5-72.4c9.7-9.3 9.9-24.8.4-34.3l-11-10.9c-9.4-9.4-24.6-9.4-33.9 0L107.7 239c-9.4 9.4-9.4 24.6 0 33.9l132.7 132.7c9.4 9.4 24.6 9.4 33.9 0l11-10.9c9.5-9.5 9.3-25-.4-34.3z"}}]})(props);}function FaFolderOpen(props){return GenIcon({"attr":{"viewBox":"0 0 576 512"},"child":[{"tag":"path","attr":{"d":"M572.694 292.093L500.27 416.248A63.997 63.997 0 0 1 444.989 448H45.025c-18.523 0-30.064-20.093-20.731-36.093l72.424-124.155A64 64 0 0 1 152 256h399.964c18.523 0 30.064 20.093 20.73 36.093zM152 224h328v-48c0-26.51-21.49-48-48-48H272l-64-64H48C21.49 64 0 85.49 0 112v278.046l69.077-118.418C86.214 242.25 117.989 224 152 224z"}}]})(props);}function FaGlobe(props){return GenIcon({"attr":{"viewBox":"0 0 496 512"},"child":[{"tag":"path","attr":{"d":"M336.5 160C322 70.7 287.8 8 248 8s-74 62.7-88.5 152h177zM152 256c0 22.2 1.2 43.5 3.3 64h185.3c2.1-20.5 3.3-41.8 3.3-64s-1.2-43.5-3.3-64H155.3c-2.1 20.5-3.3 41.8-3.3 64zm324.7-96c-28.6-67.9-86.5-120.4-158-141.6 24.4 33.8 41.2 84.7 50 141.6h108zM177.2 18.4C105.8 39.6 47.8 92.1 19.3 160h108c8.7-56.9 25.5-107.8 49.9-141.6zM487.4 192H372.7c2.1 21 3.3 42.5 3.3 64s-1.2 43-3.3 64h114.6c5.5-20.5 8.6-41.8 8.6-64s-3.1-43.5-8.5-64zM120 256c0-21.5 1.2-43 3.3-64H8.6C3.2 212.5 0 233.8 0 256s3.2 43.5 8.6 64h114.6c-2-21-3.2-42.5-3.2-64zm39.5 96c14.5 89.3 48.7 152 88.5 152s74-62.7 88.5-152h-177zm159.3 141.6c71.4-21.2 129.4-73.7 158-141.6h-108c-8.8 56.9-25.6 107.8-50 141.6zM19.3 352c28.6 67.9 86.5 120.4 158 141.6-24.4-33.8-41.2-84.7-50-141.6h-108z"}}]})(props);}function FaHistory(props){return GenIcon({"attr":{"viewBox":"0 0 512 512"},"child":[{"tag":"path","attr":{"d":"M504 255.531c.253 136.64-111.18 248.372-247.82 248.468-59.015.042-113.223-20.53-155.822-54.911-11.077-8.94-11.905-25.541-1.839-35.607l11.267-11.267c8.609-8.609 22.353-9.551 31.891-1.984C173.062 425.135 212.781 440 256 440c101.705 0 184-82.311 184-184 0-101.705-82.311-184-184-184-48.814 0-93.149 18.969-126.068 49.932l50.754 50.754c10.08 10.08 2.941 27.314-11.313 27.314H24c-8.837 0-16-7.163-16-16V38.627c0-14.254 17.234-21.393 27.314-11.314l49.372 49.372C129.209 34.136 189.552 8 256 8c136.81 0 247.747 110.78 248 247.531zm-180.912 78.784l9.823-12.63c8.138-10.463 6.253-25.542-4.21-33.679L288 256.349V152c0-13.255-10.745-24-24-24h-16c-13.255 0-24 10.745-24 24v135.651l65.409 50.874c10.463 8.137 25.541 6.253 33.679-4.21z"}}]})(props);}function FaHome(props){return GenIcon({"attr":{"viewBox":"0 0 576 512"},"child":[{"tag":"path","attr":{"d":"M280.37 148.26L96 300.11V464a16 16 0 0 0 16 16l112.06-.29a16 16 0 0 0 15.92-16V368a16 16 0 0 1 16-16h64a16 16 0 0 1 16 16v95.64a16 16 0 0 0 16 16.05L464 480a16 16 0 0 0 16-16V300L295.67 148.26a12.19 12.19 0 0 0-15.3 0zM571.6 251.47L488 182.56V44.05a12 12 0 0 0-12-12h-56a12 12 0 0 0-12 12v72.61L318.47 43a48 48 0 0 0-61 0L4.34 251.47a12 12 0 0 0-1.6 16.9l25.5 31A12 12 0 0 0 45.15 301l235.22-193.74a12.19 12.19 0 0 1 15.3 0L530.9 301a12 12 0 0 0 16.9-1.6l25.5-31a12 12 0 0 0-1.7-16.93z"}}]})(props);}function FaProjectDiagram(props){return GenIcon({"attr":{"viewBox":"0 0 640 512"},"child":[{"tag":"path","attr":{"d":"M384 320H256c-17.67 0-32 14.33-32 32v128c0 17.67 14.33 32 32 32h128c17.67 0 32-14.33 32-32V352c0-17.67-14.33-32-32-32zM192 32c0-17.67-14.33-32-32-32H32C14.33 0 0 14.33 0 32v128c0 17.67 14.33 32 32 32h95.72l73.16 128.04C211.98 300.98 232.4 288 256 288h.28L192 175.51V128h224V64H192V32zM608 0H480c-17.67 0-32 14.33-32 32v128c0 17.67 14.33 32 32 32h128c17.67 0 32-14.33 32-32V32c0-17.67-14.33-32-32-32z"}}]})(props);}function FaTags(props){return GenIcon({"attr":{"viewBox":"0 0 640 512"},"child":[{"tag":"path","attr":{"d":"M497.941 225.941L286.059 14.059A48 48 0 0 0 252.118 0H48C21.49 0 0 21.49 0 48v204.118a48 48 0 0 0 14.059 33.941l211.882 211.882c18.744 18.745 49.136 18.746 67.882 0l204.118-204.118c18.745-18.745 18.745-49.137 0-67.882zM112 160c-26.51 0-48-21.49-48-48s21.49-48 48-48 48 21.49 48 48-21.49 48-48 48zm513.941 133.823L421.823 497.941c-18.745 18.745-49.137 18.745-67.882 0l-.36-.36L527.64 323.522c16.999-16.999 26.36-39.6 26.36-63.64s-9.362-46.641-26.36-63.64L331.397 0h48.721a48 48 0 0 1 33.941 14.059l211.882 211.882c18.745 18.745 18.745 49.137 0 67.882z"}}]})(props);}function FaThumbtack(props){return GenIcon({"attr":{"viewBox":"0 0 384 512"},"child":[{"tag":"path","attr":{"d":"M298.028 214.267L285.793 96H328c13.255 0 24-10.745 24-24V24c0-13.255-10.745-24-24-24H56C42.745 0 32 10.745 32 24v48c0 13.255 10.745 24 24 24h42.207L85.972 214.267C37.465 236.82 0 277.261 0 328c0 13.255 10.745 24 24 24h136v104.007c0 1.242.289 2.467.845 3.578l24 48c2.941 5.882 11.364 5.893 14.311 0l24-48a8.008 8.008 0 0 0 .845-3.578V352h136c13.255 0 24-10.745 24-24-.001-51.183-37.983-91.42-85.973-113.733z"}}]})(props);}function FaTrash(props){return GenIcon({"attr":{"viewBox":"0 0 448 512"},"child":[{"tag":"path","attr":{"d":"M432 32H312l-9.4-18.7A24 24 0 0 0 281.1 0H166.8a23.72 23.72 0 0 0-21.4 13.3L136 32H16A16 16 0 0 0 0 48v32a16 16 0 0 0 16 16h416a16 16 0 0 0 16-16V48a16 16 0 0 0-16-16zM53.2 467a48 48 0 0 0 47.9 45h245.8a48 48 0 0 0 47.9-45L416 128H32z"}}]})(props);}function FaRegBookmark(props){return GenIcon({"attr":{"viewBox":"0 0 384 512"},"child":[{"tag":"path","attr":{"d":"M336 0H48C21.49 0 0 21.49 0 48v464l192-112 192 112V48c0-26.51-21.49-48-48-48zm0 428.43l-144-84-144 84V54a6 6 0 0 1 6-6h276c3.314 0 6 2.683 6 5.996V428.43z"}}]})(props);}
+function CgChevronDoubleDown(props){return GenIcon({"attr":{"viewBox":"0 0 24 24","fill":"none"},"child":[{"tag":"path","attr":{"d":"M7.75735 5.63605L6.34314 7.05026L12 12.7071L17.6569 7.05029L16.2427 5.63608L12 9.87872L7.75735 5.63605Z","fill":"currentColor"}},{"tag":"path","attr":{"d":"M6.34314 12.7071L7.75735 11.2929L12 15.5356L16.2427 11.2929L17.6569 12.7071L12 18.364L6.34314 12.7071Z","fill":"currentColor"}}]})(props);}function CgChevronDoubleUp(props){return GenIcon({"attr":{"viewBox":"0 0 24 24","fill":"none"},"child":[{"tag":"path","attr":{"d":"M17.6569 11.2929L16.2427 12.7071L12 8.46444L7.75735 12.7071L6.34314 11.2929L12 5.63605L17.6569 11.2929Z","fill":"currentColor"}},{"tag":"path","attr":{"d":"M17.6569 16.9497L16.2427 18.3639L12 14.1213L7.75735 18.364L6.34314 16.9498L12 11.2929L17.6569 16.9497Z","fill":"currentColor"}}]})(props);}function CgSortAz(props){return GenIcon({"attr":{"viewBox":"0 0 24 24","fill":"none"},"child":[{"tag":"path","attr":{"d":"M6 8C6 7.44772 6.44772 7 7 7H17C17.5523 7 18 7.44772 18 8C18 8.55228 17.5523 9 17 9H7C6.44772 9 6 8.55228 6 8Z","fill":"currentColor"}},{"tag":"path","attr":{"d":"M8 12C8 11.4477 8.44772 11 9 11H15C15.5523 11 16 11.4477 16 12C16 12.5523 15.5523 13 15 13H9C8.44772 13 8 12.5523 8 12Z","fill":"currentColor"}},{"tag":"path","attr":{"d":"M11 15C10.4477 15 10 15.4477 10 16C10 16.5523 10.4477 17 11 17H13C13.5523 17 14 16.5523 14 16C14 15.4477 13.5523 15 13 15H11Z","fill":"currentColor"}}]})(props);}
 
 // THIS FILE IS AUTO GENERATED
 function AiFillFileImage(props){return GenIcon({"attr":{"viewBox":"0 0 1024 1024"},"child":[{"tag":"path","attr":{"d":"M854.6 288.7L639.4 73.4c-6-6-14.2-9.4-22.7-9.4H192c-17.7 0-32 14.3-32 32v832c0 17.7 14.3 32 32 32h640c17.7 0 32-14.3 32-32V311.3c0-8.5-3.4-16.6-9.4-22.6zM400 402c22.1 0 40 17.9 40 40s-17.9 40-40 40-40-17.9-40-40 17.9-40 40-40zm296 294H328c-6.7 0-10.4-7.7-6.3-12.9l99.8-127.2a8 8 0 0 1 12.6 0l41.1 52.4 77.8-99.2a8 8 0 0 1 12.6 0l136.5 174c4.3 5.2.5 12.9-6.1 12.9zm-94-370V137.8L790.2 326H602z"}}]})(props);}function AiFillFilePdf(props){return GenIcon({"attr":{"viewBox":"0 0 1024 1024"},"child":[{"tag":"path","attr":{"d":"M854.6 288.7c6 6 9.4 14.1 9.4 22.6V928c0 17.7-14.3 32-32 32H192c-17.7 0-32-14.3-32-32V96c0-17.7 14.3-32 32-32h424.7c8.5 0 16.7 3.4 22.7 9.4l215.2 215.3zM790.2 326L602 137.8V326h188.2zM633.22 637.26c-15.18-.5-31.32.67-49.65 2.96-24.3-14.99-40.66-35.58-52.28-65.83l1.07-4.38 1.24-5.18c4.3-18.13 6.61-31.36 7.3-44.7.52-10.07-.04-19.36-1.83-27.97-3.3-18.59-16.45-29.46-33.02-30.13-15.45-.63-29.65 8-33.28 21.37-5.91 21.62-2.45 50.07 10.08 98.59-15.96 38.05-37.05 82.66-51.2 107.54-18.89 9.74-33.6 18.6-45.96 28.42-16.3 12.97-26.48 26.3-29.28 40.3-1.36 6.49.69 14.97 5.36 21.92 5.3 7.88 13.28 13 22.85 13.74 24.15 1.87 53.83-23.03 86.6-79.26 3.29-1.1 6.77-2.26 11.02-3.7l11.9-4.02c7.53-2.54 12.99-4.36 18.39-6.11 23.4-7.62 41.1-12.43 57.2-15.17 27.98 14.98 60.32 24.8 82.1 24.8 17.98 0 30.13-9.32 34.52-23.99 3.85-12.88.8-27.82-7.48-36.08-8.56-8.41-24.3-12.43-45.65-13.12zM385.23 765.68v-.36l.13-.34a54.86 54.86 0 0 1 5.6-10.76c4.28-6.58 10.17-13.5 17.47-20.87 3.92-3.95 8-7.8 12.79-12.12 1.07-.96 7.91-7.05 9.19-8.25l11.17-10.4-8.12 12.93c-12.32 19.64-23.46 33.78-33 43-3.51 3.4-6.6 5.9-9.1 7.51a16.43 16.43 0 0 1-2.61 1.42c-.41.17-.77.27-1.13.3a2.2 2.2 0 0 1-1.12-.15 2.07 2.07 0 0 1-1.27-1.91zM511.17 547.4l-2.26 4-1.4-4.38c-3.1-9.83-5.38-24.64-6.01-38-.72-15.2.49-24.32 5.29-24.32 6.74 0 9.83 10.8 10.07 27.05.22 14.28-2.03 29.14-5.7 35.65zm-5.81 58.46l1.53-4.05 2.09 3.8c11.69 21.24 26.86 38.96 43.54 51.31l3.6 2.66-4.39.9c-16.33 3.38-31.54 8.46-52.34 16.85 2.17-.88-21.62 8.86-27.64 11.17l-5.25 2.01 2.8-4.88c12.35-21.5 23.76-47.32 36.05-79.77zm157.62 76.26c-7.86 3.1-24.78.33-54.57-12.39l-7.56-3.22 8.2-.6c23.3-1.73 39.8-.45 49.42 3.07 4.1 1.5 6.83 3.39 8.04 5.55a4.64 4.64 0 0 1-1.36 6.31 6.7 6.7 0 0 1-2.17 1.28z"}}]})(props);}function AiFillFileWord(props){return GenIcon({"attr":{"viewBox":"0 0 1024 1024"},"child":[{"tag":"path","attr":{"d":"M854.6 288.7c6 6 9.4 14.1 9.4 22.6V928c0 17.7-14.3 32-32 32H192c-17.7 0-32-14.3-32-32V96c0-17.7 14.3-32 32-32h424.7c8.5 0 16.7 3.4 22.7 9.4l215.2 215.3zM790.2 326L602 137.8V326h188.2zM512 566.1l52.81 197a12 12 0 0 0 11.6 8.9h31.77a12 12 0 0 0 11.6-8.88l74.37-276a12 12 0 0 0 .4-3.12 12 12 0 0 0-12-12h-35.57a12 12 0 0 0-11.7 9.31l-45.78 199.1-49.76-199.32A12 12 0 0 0 528.1 472h-32.2a12 12 0 0 0-11.64 9.1L434.6 680.01 388.5 481.3a12 12 0 0 0-11.68-9.29h-35.39a12 12 0 0 0-3.11.41 12 12 0 0 0-8.47 14.7l74.17 276A12 12 0 0 0 415.6 772h31.99a12 12 0 0 0 11.59-8.9l52.81-197z"}}]})(props);}
@@ -2090,48 +2103,11 @@ const SunriseIcon = (_a) => {
         React.createElement("path", { d: "M6 22h12" }),
         React.createElement("path", { d: "M8 18a4 4 0 0 1 8 0" })));
 };
-const MinusSquareO = (props) => (React.createElement("svg", Object.assign({}, props, { viewBox: "64 -65 897 897" }),
-    React.createElement("g", null,
-        React.createElement("path", { d: "M888 760v0v0v-753v0h-752v0v753v0h752zM888 832h-752q-30 0 -51 -21t-21 -51v-753q0 -29 21 -50.5t51 -21.5h753q29 0 50.5 21.5t21.5 50.5v753q0 30 -21.5 51t-51.5 21v0zM732 347h-442q-14 0 -25 10.5t-11 25.5v0q0 15 11 25.5t25 10.5h442q14 0 25 -10.5t11 -25.5v0\n  q0 -15 -11 -25.5t-25 -10.5z" }))));
-const PlusSquareO = (props) => (React.createElement("svg", Object.assign({}, props, { viewBox: "64 -65 897 897" }),
-    React.createElement("g", null,
-        React.createElement("path", { d: "M888 760v0v0v-753v0h-752v0v753v0h752zM888 832h-752q-30 0 -51 -21t-21 -51v-753q0 -29 21 -50.5t51 -21.5h753q29 0 50.5 21.5t21.5 50.5v753q0 30 -21.5 51t-51.5 21v0zM732 420h-184v183q0 15 -10.5 25.5t-25.5 10.5v0q-14 0 -25 -10.5t-11 -25.5v-183h-184\n  q-15 0 -25.5 -11t-10.5 -25v0q0 -15 10.5 -25.5t25.5 -10.5h184v-183q0 -15 11 -25.5t25 -10.5v0q15 0 25.5 10.5t10.5 25.5v183h184q15 0 25.5 10.5t10.5 25.5v0q0 14 -10.5 25t-25.5 11z" }))));
-const CloseSquareO = (props) => (React.createElement("svg", Object.assign({}, props, { viewBox: "64 -65 897 897" }),
-    React.createElement("g", null,
-        React.createElement("path", { d: "M717.5 589.5q-10.5 10.5 -25.5 10.5t-26 -10l-154 -155l-154 155q-11 10 -26 10t-25.5 -10.5t-10.5 -25.5t11 -25l154 -155l-154 -155q-11 -10 -11 -25t10.5 -25.5t25.5 -10.5t26 10l154 155l154 -155q11 -10 26 -10t25.5 10.5t10.5 25t-11 25.5l-154 155l154 155\n  q11 10 11 25t-10.5 25.5zM888 760v0v0v-753v0h-752v0v753v0h752zM888 832h-752q-30 0 -51 -21t-21 -51v-753q0 -29 21 -50.5t51 -21.5h753q29 0 50.5 21.5t21.5 50.5v753q0 30 -21.5 51t-51.5 21v0z" }))));
 const LocationIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" fill="currentColor" stroke="currentColor" viewBox="0 0 50 50"><path d="M 24 0 L 24 1 L 24 4.0234375 C 13.208549 4.5309414 4.5329027 13.208443 4.0253906 24 L 1 24 L 0 24 L 0 26 L 1 26 L 4.0253906 26 C 4.5329027 36.791557 13.208549 45.469059 24 45.976562 L 24 49 L 24 50 L 26 50 L 26 49 L 26 45.974609 C 36.79155 45.467098 45.467098 36.79155 45.974609 26 L 49 26 L 50 26 L 50 24 L 49 24 L 45.974609 24 C 45.467098 13.20845 36.79155 4.5329024 26 4.0253906 L 26 1 L 26 0 L 24 0 z M 24 6.0488281 L 24 9 L 24 10 L 26 10 L 26 9 L 26 6.0507812 C 35.703044 6.5553041 43.444696 14.296956 43.949219 24 L 41 24 L 40 24 L 40 26 L 41 26 L 43.949219 26 C 43.444696 35.703044 35.703044 43.444696 26 43.949219 L 26 41 L 26 40 L 24 40 L 24 41 L 24 43.951172 C 14.298476 43.446281 6.5553046 35.703053 6.0507812 26 L 9 26 L 10 26 L 10 24 L 9 24 L 6.0507812 24 C 6.5553046 14.296947 14.298476 6.5537194 24 6.0488281 z M 19.990234 18.990234 A 1.0001 1.0001 0 0 0 19.292969 20.707031 L 23.585938 25 L 19.292969 29.292969 A 1.0001 1.0001 0 1 0 20.707031 30.707031 L 25 26.414062 L 29.292969 30.707031 A 1.0001 1.0001 0 1 0 30.707031 29.292969 L 26.414062 25 L 30.707031 20.707031 A 1.0001 1.0001 0 0 0 29.980469 18.990234 A 1.0001 1.0001 0 0 0 29.292969 19.292969 L 25 23.585938 L 20.707031 19.292969 A 1.0001 1.0001 0 0 0 19.990234 18.990234 z"/></svg>`;
 const ZoomOutIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>`;
 const ZoomOutDoubleIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 50 50" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M 21 3 C 11.621094 3 4 10.621094 4 20 C 4 29.378906 11.621094 37 21 37 C 24.710938 37 28.140625 35.804688 30.9375 33.78125 L 44.09375 46.90625 L 46.90625 44.09375 L 33.90625 31.0625 C 36.460938 28.085938 38 24.222656 38 20 C 38 10.621094 30.378906 3 21 3 Z M 21 5 C 29.296875 5 36 11.703125 36 20 C 36 28.296875 29.296875 35 21 35 C 12.703125 35 6 28.296875 6 20 C 6 11.703125 12.703125 5 21 5 Z M 13 12 L 13 18 L 15.28125 15.71875 L 19.5625 20 L 15.28125 24.28125 L 13 22 L 13 28 L 19 28 L 16.71875 25.71875 L 21 21.4375 L 25.28125 25.71875 L 23 28 L 29 28 L 29 22 L 26.71875 24.28125 L 22.4375 20 L 26.71875 15.71875 L 29 18 L 29 12 L 23 12 L 25.28125 14.28125 L 21 18.5625 L 16.71875 14.28125 L 19 12 Z"/></svg>`;
 const ZoomInIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>`;
 const SpaceIcon = `<circle cx="50" cy="50" r="50" fill="transparent" />`;
-const getFolderIcon = (plugin, children, open) => {
-    let setting = plugin.settings.folderIcon;
-    let OpenFolderIcon = MinusSquareO;
-    let InactiveOpenFolderIcon = CloseSquareO;
-    let ClosedFolderIcon = PlusSquareO;
-    if (setting === 'box-folder') {
-        OpenFolderIcon = BiFolderMinus;
-        InactiveOpenFolderIcon = BiFolder;
-        ClosedFolderIcon = BiFolderPlus;
-    }
-    else if (setting === 'icomoon') {
-        OpenFolderIcon = ImFolderMinus;
-        InactiveOpenFolderIcon = ImFolder;
-        ClosedFolderIcon = ImFolderPlus;
-    }
-    else if (setting === 'typicon') {
-        OpenFolderIcon = TiFolderOpen;
-        InactiveOpenFolderIcon = TiFolder;
-        ClosedFolderIcon = TiFolder;
-    }
-    else if (setting === 'circle-gg') {
-        OpenFolderIcon = CgRemove;
-        InactiveOpenFolderIcon = CgCloseO;
-        ClosedFolderIcon = CgAdd;
-    }
-    const Icon = children ? (open ? OpenFolderIcon : ClosedFolderIcon) : InactiveOpenFolderIcon;
-    return Icon;
-};
 
 function isMouseEvent(e) { return Boolean(e && 'screenX' in e); }
 /** Cancel on movement in either direction, handle coordinate zero, suppress the opening tap. */
@@ -2898,8 +2874,34 @@ function Tree(props) {
     // Global States
     const [openFolders$1, setOpenFolders] = Recoil_index_22(openFolders);
     const [folderFileCountMap$1] = Recoil_index_22(folderFileCountMap);
-    const [activeFolderPath$1] = Recoil_index_22(activeFolderPath);
+    const [activeFolderPath$1, setActiveFolderPath] = Recoil_index_22(activeFolderPath);
+    const [, setFocusedFolder] = Recoil_index_22(focusedFolder);
+    const [, setTopFocus] = Recoil_index_22(topFolderFocus);
+    const [pending, setPending] = reactExports.useState(false);
+    const gesture = reactExports.useMemo(() => createFolderTap(280, setPending), []);
+    reactExports.useEffect(() => { gesture.cancel(); return gesture.cancel; }, [activeFolderPath$1, gesture]);
+    // All explicit navigation and nested controls cancel a pending folder activation.
+    reactExports.useEffect(() => {
+        const cancel = (event) => {
+            var _a;
+            const target = event.target;
+            if (!((_a = target.closest) === null || _a === void 0 ? void 0 : _a.call(target, `[data-path="${CSS.escape(props.folder.path)}"] .fjgduo-folder-block`)))
+                gesture.cancel();
+        };
+        document.addEventListener('pointerdown', cancel, true);
+        return () => document.removeEventListener('pointerdown', cancel, true);
+    }, [gesture, props.folder.path]);
+    const goToParent = () => {
+        const current = props.plugin.app.vault.getAbstractFileByPath(activeFolderPath$1 || '/');
+        if (!(current instanceof obsidian.TFolder) || !current.parent)
+            return;
+        setTopFocus(false);
+        setFocusedFolder(current.parent);
+        setActiveFolderPath(current.parent.path);
+        window.dispatchEvent(new CustomEvent(FOLDER_SELECTED, { detail: current.parent }));
+    };
     const longPressEvents = useLongPress((e) => {
+        gesture.cancel();
         props.onContextMenu(e);
     }, 500);
     // Local States
@@ -2936,21 +2938,24 @@ function Tree(props) {
     // --> Click Events
     const folderNameClickEvent = (ev) => {
         if (props.plugin.settings.folderNote && ev.shiftKey) {
+            gesture.cancel();
             const fileFullPath = `${props.folder.path}/${props.folder.name}.md`;
             props.plugin.app.vault.getAbstractFileByPath(fileFullPath);
             props.plugin.app.workspace.openLinkText(fileFullPath, '/', false);
         }
         else {
-            props.onClick();
+            if (ev.detail === 0) {
+                gesture.cancel();
+                props.onClick();
+            }
+            else
+                gesture.tap(() => props.onClick(), goToParent);
         }
     };
-    const folderContextMenuEvent = (e) => { e.preventDefault(); props.onContextMenu(e); };
+    const folderContextMenuEvent = (e) => { gesture.cancel(); e.preventDefault(); props.onContextMenu(e); };
     const folderNameDoubleClickEvent = (ev) => {
-        setOpen(true);
-        props.onDoubleClick();
+        ev.preventDefault(); // The two click events already resolved the gesture.
     };
-    // --> Icon
-    const Icon = reactExports.useMemo(() => getFolderIcon(props.plugin, props.children, open), [open, props.children, props.plugin.settings.folderIcon]);
     // --> Folder Count Map
     const folderCount = folderFileCountMap$1[props.folder.path];
     // --> Drag and Drop Actions
@@ -2991,6 +2996,7 @@ function Tree(props) {
         e.dataTransfer.clearData();
     };
     const onFolderDragStart = (e, folder) => {
+        gesture.cancel();
         e.dataTransfer.setData('application/json', JSON.stringify({ folderPath: folder.path }));
         let dragManager = props.plugin.app.dragManager;
         if (!(dragManager === null || dragManager === void 0 ? void 0 : dragManager.dragFile) || !(dragManager === null || dragManager === void 0 ? void 0 : dragManager.onDragStart)) {
@@ -3008,15 +3014,19 @@ function Tree(props) {
                     (isFolderActive ? ' is-folder-active' : ''), "data-path": props.folder.path }),
                 React.createElement("input", Object.assign({}, getInputProps())),
                 React.createElement("div", { className: "fjgduo-folder-line" },
-                    React.createElement("div", { className: "fjgduo-icon-div", "data-ignore-swipe": "true", role: "button", tabIndex: 0, "aria-label": `Expand or collapse ${props.folder.name}`, "aria-expanded": open, onClick: obsidian.Platform.isMobile ? toggle : undefined, onKeyDown: e => { if (e.key === 'Enter' || e.key === ' ') {
+                    props.children && React.createElement("button", { className: "fjgduo-icon-div", "data-ignore-swipe": "true", "aria-label": `Expand or collapse ${props.folder.name}`, "aria-expanded": open, onClick: e => { e.stopPropagation(); gesture.cancel(); toggle(); } },
+                        React.createElement(FaChevronRight, { className: "fjgduo-expand-chevron", "aria-hidden": "true" })),
+                    React.createElement("div", Object.assign({ className: `fjgduo-folder-block${pending ? ' is-tap-pending' : ''}`, "data-ignore-swipe": "true", role: "button", tabIndex: 0, "aria-label": `Open ${props.folder.name} folder`, title: "Tap to open; double-tap to go up one folder", onKeyDown: e => { if (e.key === 'Enter' || e.key === ' ') {
                             e.preventDefault();
-                            toggle();
-                        } } },
-                        React.createElement(Icon, { className: "fjgduo-folder-toggle", style: { opacity: props.children ? 1 : 0.3 }, onClick: obsidian.Platform.isMobile ? undefined : toggle })),
-                    React.createElement("div", Object.assign({ className: "fjgduo-folder-block", "data-ignore-swipe": "true", role: "button", tabIndex: 0, onKeyDown: e => { if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
+                            gesture.cancel();
                             props.onClick();
+                        }
+                        else if (e.key === 'ArrowLeft') {
+                            e.preventDefault();
+                            gesture.cancel();
+                            goToParent();
                         } }, onClick: folderNameClickEvent, onDoubleClick: folderNameDoubleClickEvent, onContextMenu: folderContextMenuEvent }, longPressEvents),
+                        isFolderActive || open ? React.createElement(FaFolderOpen, { className: "fjgduo-folder-glyph", "aria-hidden": "true" }) : React.createElement(FaFolder, { className: "fjgduo-folder-glyph", "aria-hidden": "true" }),
                         React.createElement("div", { className: "fjgduo-folder-type", style: { marginRight: props.type ? 10 : 0 } }, props.type),
                         React.createElement("div", { className: `fjgduo-folder-name ${isFolderActive ? 'is-folder-active' : ''}${props.isRootFolder ? ' is-root-folder' : ''}` },
                             props.content,
@@ -5097,20 +5107,20 @@ function AdaptiveNavigator({ plugin, fileTreeView }) {
                         crumb.collapsed ? '… / ' : ''),
                     React.createElement("span", { className: "duo-crumb-last" }, crumb.last)))),
         React.createElement("div", { className: "duo-icon-row" },
-            React.createElement("button", { "data-ignore-swipe": "true", "aria-label": "Open Vault Control Center", title: "Vault Control Center", onClick: e => folderAction('home', e) },
-                React.createElement(FaHome, { "aria-hidden": "true" })),
-            React.createElement("button", { "data-ignore-swipe": "true", "aria-label": "Open FJG Objective Manager", title: "FJG Objective Manager", onClick: e => folderAction('tasks', e) },
-                React.createElement(LuListChecks, { "aria-hidden": "true" })),
             React.createElement("button", { "data-ignore-swipe": "true", "aria-label": "Open Omnisearch", title: "Open Omnisearch", onClick: e => folderAction('omnisearch', e) },
                 React.createElement(IoIosSearch, { "aria-hidden": "true" })),
             React.createElement("button", { "data-ignore-swipe": "true", "aria-label": "New note", title: "New note", onClick: e => fileAction('new-note', e) },
                 React.createElement(IoIosAddCircle, null)),
+            React.createElement("button", { "data-ignore-swipe": "true", "aria-label": "Talk to Vault", title: "Talk to Vault", onClick: () => { var _a; return plugin.openVaultVoice({ folder: path, note: ((_a = plugin.app.workspace.getActiveFile()) === null || _a === void 0 ? void 0 : _a.path) || '' }); } },
+                React.createElement(LuMic, { "aria-hidden": "true" })),
+            React.createElement("button", { "data-ignore-swipe": "true", "aria-label": "Open Vault Control Center", title: "Vault Control Center", onClick: e => folderAction('home', e) },
+                React.createElement(FaHome, { "aria-hidden": "true" })),
+            React.createElement("button", { "data-ignore-swipe": "true", "aria-label": "Open FJG Objective Manager", title: "FJG Objective Manager", onClick: e => folderAction('tasks', e) },
+                React.createElement(LuListChecks, { "aria-hidden": "true" })),
             React.createElement("button", { "data-ignore-swipe": "true", "aria-label": "Recent", title: "Recent", "aria-pressed": view$1 === 'recent', onClick: () => { setShortcuts(false); setView('recent'); } },
                 React.createElement(FaHistory, null)),
             React.createElement("button", { "data-ignore-swipe": "true", "aria-label": "Bookmarks", title: "Bookmarks", "aria-pressed": view$1 === 'bookmarks', onClick: () => { setShortcuts(false); setView('bookmarks'); } },
                 React.createElement(FaRegBookmark, null)),
-            React.createElement("button", { "data-ignore-swipe": "true", "aria-label": "Talk to Vault", title: "Talk to Vault", onClick: () => { var _a; return plugin.openVaultVoice({ folder: path, note: ((_a = plugin.app.workspace.getActiveFile()) === null || _a === void 0 ? void 0 : _a.path) || '' }); } },
-                React.createElement(LuMic, { "aria-hidden": "true" })),
             React.createElement("button", { "data-ignore-swipe": "true", "aria-label": "All File Focus buttons", title: "All File Focus buttons", onClick: allButtons, onContextMenu: e => { e.preventDefault(); overflow(e); } }, "\u22EF")));
     const resize = (e) => {
         if (!host.current)

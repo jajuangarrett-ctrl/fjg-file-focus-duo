@@ -72,3 +72,12 @@ The repository root includes main.js, manifest.json, styles.css, versions.json a
 The always-on Mac checks this connected checkout every 60 seconds and automatically commits and pushes changes on main to the private origin repository. Source changes are saved automatically; run npm run build when updating the installable runtime. Use this connected checkout for future work, not the outer development/archive workspace. The job skips detached/non-main branches and repositories behind GitHub with local changes, and does not force-push. It needs the Mac awake, the external SSD available, and network/GitHub authentication working.
 
 Settings, credential files, node_modules, logs and local release archives are ignored. Automatic pushes do not create GitHub tags or releases, install updates into Obsidian, or configure BRAT.
+
+### 0.1.13 — Touch-friendly folder navigation
+- Folder icons are larger and recognizable even when the folder has no subfolders. The folder icon, name and remaining row space open the folder; the separate chevron expands/collapses its children.
+- Single tap/click opens after a short 280 ms gesture window. Double tap/click goes up from the **current folder**, without first opening the tapped child; at vault root it does nothing. The visible breadcrumb/back control is retained (including its existing close-pane behavior at root).
+- Keyboard Enter/Space opens immediately; ArrowLeft goes up. Screen-reader activation remains immediate. Long-press menus and drag/drop remain available.
+- Search (Omnisearch), New note and Talk to Vault lead the toolbar. Larger glyphs fit the existing 44 px rows/targets, without extra row padding. Wider panes retain side-by-side folders/files; narrower panes use drill-down. Width is measured, not inferred from a phone model.
+- Validation: typecheck, unit tests, production build and actual React Chromium touch fixtures at 264/390/560/867 px. Physical iPhone/Obsidian acceptance remains to be checked after updating through BRAT. This release does not change vault files, secrets or the original File Focus plugin.
+
+Focused browser regression: run `npm run test:browser:build`, serve this repository on localhost port 8847, then `node tests/browser/folder-touch.cjs` (set `DUO_BROWSER_BIN` if needed).

@@ -173,13 +173,13 @@ export function AdaptiveNavigator({plugin, fileTreeView}: {plugin: FileTreeAlter
             <span className="duo-breadcrumb"><span className="duo-crumb-first">{crumb.first}</span>{crumb.last && <><span className="duo-crumb-middle"> / {crumb.collapsed ? '… / ' : ''}</span><span className="duo-crumb-last">{crumb.last}</span></>}</span>
         </button>
         <div className="duo-icon-row">
-        <button data-ignore-swipe="true" aria-label="Open Vault Control Center" title="Vault Control Center" onClick={e => folderAction('home',e)}><Icons.FaHome aria-hidden="true"/></button>
-        <button data-ignore-swipe="true" aria-label="Open FJG Objective Manager" title="FJG Objective Manager" onClick={e => folderAction('tasks',e)}><Icons.LuListChecks aria-hidden="true"/></button>
         <button data-ignore-swipe="true" aria-label="Open Omnisearch" title="Open Omnisearch" onClick={e => folderAction('omnisearch',e)}><Icons.IoIosSearch aria-hidden="true"/></button>
         <button data-ignore-swipe="true" aria-label="New note" title="New note" onClick={e => fileAction('new-note',e)}><Icons.IoIosAddCircle/></button>
+        <button data-ignore-swipe="true" aria-label="Talk to Vault" title="Talk to Vault" onClick={() => plugin.openVaultVoice({ folder: path, note: plugin.app.workspace.getActiveFile()?.path || '' })}><LuMic aria-hidden="true"/></button>
+        <button data-ignore-swipe="true" aria-label="Open Vault Control Center" title="Vault Control Center" onClick={e => folderAction('home',e)}><Icons.FaHome aria-hidden="true"/></button>
+        <button data-ignore-swipe="true" aria-label="Open FJG Objective Manager" title="FJG Objective Manager" onClick={e => folderAction('tasks',e)}><Icons.LuListChecks aria-hidden="true"/></button>
         <button data-ignore-swipe="true" aria-label="Recent" title="Recent" aria-pressed={view==='recent'} onClick={() => {setShortcuts(false);setView('recent');}}><Icons.FaHistory/></button>
         <button data-ignore-swipe="true" aria-label="Bookmarks" title="Bookmarks" aria-pressed={view==='bookmarks'} onClick={() => {setShortcuts(false);setView('bookmarks');}}><Icons.FaRegBookmark/></button>
-        <button data-ignore-swipe="true" aria-label="Talk to Vault" title="Talk to Vault" onClick={() => plugin.openVaultVoice({ folder: path, note: plugin.app.workspace.getActiveFile()?.path || '' })}><LuMic aria-hidden="true"/></button>
         <button data-ignore-swipe="true" aria-label="All File Focus buttons" title="All File Focus buttons" onClick={allButtons} onContextMenu={e=>{e.preventDefault();overflow(e);}}>⋯</button>
         </div>
     </div>;
