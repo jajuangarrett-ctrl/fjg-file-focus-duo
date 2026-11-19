@@ -81,3 +81,8 @@ Settings, credential files, node_modules, logs and local release archives are ig
 - Validation: typecheck, unit tests, production build and actual React Chromium touch fixtures at 264/390/560/867 px. Physical iPhone/Obsidian acceptance remains to be checked after updating through BRAT. This release does not change vault files, secrets or the original File Focus plugin.
 
 Focused browser regression: run `npm run test:browser:build`, serve this repository on localhost port 8847, then `node tests/browser/folder-touch.cjs` (set `DUO_BROWSER_BIN` if needed).
+
+### 0.1.14 — Recent and Bookmarks launcher
+- The clock and bookmark toolbar buttons open the same searchable Launcher in Recent Notes or Bookmarks respectively. Switch tabs inside the launcher, or dismiss it to return to the same folder.
+- Compact phone panes use larger toolbar and folder glyphs and at least 44 px targets. Narrow panes lay out the eight toolbar controls in two even rows instead of leaving an isolated overflow button.
+- Touch coverage uses the React browser fixtures at folded and wider pane widths. No physical iPhone or vault installation is part of this release.

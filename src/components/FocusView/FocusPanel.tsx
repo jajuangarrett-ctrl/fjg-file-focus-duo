@@ -29,6 +29,7 @@ interface FocusPanelProps {
     plugin: FileTreeAlternativePlugin;
     mode: FocusPanelMode;
     adaptive?: boolean;
+    launcher?: { onSwitch: (mode: FocusPanelMode) => void; onClose: () => void; onRevealFolder: () => void };
 }
 
 interface FocusRowConfig {
@@ -59,7 +60,8 @@ export function FocusPanel(props: FocusPanelProps) {
     const switchMode = (nextMode: FocusPanelMode) => {
         setQuery('');
         setBookmarkStack([]);
-        setView(nextMode);
+        if (props.launcher) props.launcher.onSwitch(nextMode);
+        else setView(nextMode);
     };
 
     const closePanel = () => {
@@ -76,9 +78,12 @@ export function FocusPanel(props: FocusPanelProps) {
 
         await openDuoFile({file:FileTreeUtils.TFile2OZFile(file),app:plugin.app,newLeaf:plugin.settings.focusOpenInNewTab,subpath});
         setActiveOzFile(FileTreeUtils.TFile2OZFile(file));
+        props.launcher?.onClose();
     };
 
     const revealFolder = (folder: TFolder) => {
+        props.launcher?.onRevealFolder();
+        props.launcher?.onClose();
         setActiveFolderPath(folder.path);
         setView('file');
         window.dispatchEvent(new CustomEvent(eventTypes.revealFolder, { detail: { folder } }));
@@ -152,21 +157,21 @@ export function FocusPanel(props: FocusPanelProps) {
         <div className="fjgduo-focus-panel">
             <div className="fjgduo-focus-panel__header fjgduo-tree-header-fixed">
                 {!props.adaptive && <div className="fjgduo-flex-container">
-                    <div className="fjgduo-nav-action-button" style={{ marginLeft: '0px' }}>
+                    {!props.launcher && <div className="fjgduo-nav-action-button" style={{ marginLeft: '0px' }}>
                         <Icons.IoIosCloseCircleOutline onClick={closePanel} size={19} aria-label="Close Focus Panel" />
-                    </div>
-                    <div className="fjgduo-focus-panel__tabs" role="tablist" aria-label="FJG File Focus Duo panels">
+                    </div>}
+                    <div className="fjgduo-focus-panel__tabs" role="group" aria-label="Launcher views">
                         <button
                             type="button"
                             className={`fjgduo-focus-panel__tab${mode === 'recent' ? ' is-active' : ''}`}
-                            onClick={() => switchMode('recent')}>
+                            aria-pressed={mode === 'recent'} onClick={() => switchMode('recent')}>
                             <Icons.FaHistory size={13} />
-                            <span>Recent</span>
+                            <span>{props.launcher ? 'Recent Notes' : 'Recent'}</span>
                         </button>
                         <button
                             type="button"
                             className={`fjgduo-focus-panel__tab${mode === 'bookmarks' ? ' is-active' : ''}`}
-                            onClick={() => switchMode('bookmarks')}>
+                            aria-pressed={mode === 'bookmarks'} onClick={() => switchMode('bookmarks')}>
                             <Icons.FaRegBookmark size={13} />
                             <span>Bookmarks</span>
                         </button>
@@ -176,12 +181,13 @@ export function FocusPanel(props: FocusPanelProps) {
                     <input
                         ref={search}
                         type="search"
+                        aria-label={mode === 'bookmarks' ? 'Search bookmarks' : 'Search recent notes'}
                         placeholder={mode === 'bookmarks' ? 'Search bookmarks...' : 'Search recent notes...'}
                         value={query}
                         onChange={(event) => setQuery(event.target.value)}
                     />
                 </div>}
-                <div className="fjgduo-file-tree-header">{PANEL_LABELS[mode]}</div>
+                {!props.launcher && <div className="fjgduo-file-tree-header">{PANEL_LABELS[mode]}</div>}
             </div>
 
             <div className="fjgduo-focus-panel__body">

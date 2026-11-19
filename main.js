@@ -4490,13 +4490,17 @@ function FocusPanel(props) {
     const switchMode = (nextMode) => {
         setQuery('');
         setBookmarkStack([]);
-        setView(nextMode);
+        if (props.launcher)
+            props.launcher.onSwitch(nextMode);
+        else
+            setView(nextMode);
     };
     const closePanel = () => {
         setView('folder');
         setActiveFolderPath('');
     };
     const openFilePath = (path, subpath) => __awaiter(this, void 0, void 0, function* () {
+        var _a;
         const file = plugin.app.vault.getAbstractFileByPath(path);
         if (!(file instanceof obsidian.TFile)) {
             new obsidian.Notice('File not found.');
@@ -4504,8 +4508,12 @@ function FocusPanel(props) {
         }
         yield openFile$1({ file: TFile2OZFile(file), app: plugin.app, newLeaf: plugin.settings.focusOpenInNewTab, subpath });
         setActiveOzFile(TFile2OZFile(file));
+        (_a = props.launcher) === null || _a === void 0 ? void 0 : _a.onClose();
     });
     const revealFolder = (folder) => {
+        var _a, _b;
+        (_a = props.launcher) === null || _a === void 0 ? void 0 : _a.onRevealFolder();
+        (_b = props.launcher) === null || _b === void 0 ? void 0 : _b.onClose();
         setActiveFolderPath(folder.path);
         setView('file');
         window.dispatchEvent(new CustomEvent(eventTypes.revealFolder, { detail: { folder } }));
@@ -4571,18 +4579,18 @@ function FocusPanel(props) {
     return (React.createElement("div", { className: "fjgduo-focus-panel" },
         React.createElement("div", { className: "fjgduo-focus-panel__header fjgduo-tree-header-fixed" },
             !props.adaptive && React.createElement("div", { className: "fjgduo-flex-container" },
-                React.createElement("div", { className: "fjgduo-nav-action-button", style: { marginLeft: '0px' } },
+                !props.launcher && React.createElement("div", { className: "fjgduo-nav-action-button", style: { marginLeft: '0px' } },
                     React.createElement(IoIosCloseCircleOutline, { onClick: closePanel, size: 19, "aria-label": "Close Focus Panel" })),
-                React.createElement("div", { className: "fjgduo-focus-panel__tabs", role: "tablist", "aria-label": "FJG File Focus Duo panels" },
-                    React.createElement("button", { type: "button", className: `fjgduo-focus-panel__tab${mode === 'recent' ? ' is-active' : ''}`, onClick: () => switchMode('recent') },
+                React.createElement("div", { className: "fjgduo-focus-panel__tabs", role: "group", "aria-label": "Launcher views" },
+                    React.createElement("button", { type: "button", className: `fjgduo-focus-panel__tab${mode === 'recent' ? ' is-active' : ''}`, "aria-pressed": mode === 'recent', onClick: () => switchMode('recent') },
                         React.createElement(FaHistory, { size: 13 }),
-                        React.createElement("span", null, "Recent")),
-                    React.createElement("button", { type: "button", className: `fjgduo-focus-panel__tab${mode === 'bookmarks' ? ' is-active' : ''}`, onClick: () => switchMode('bookmarks') },
+                        React.createElement("span", null, props.launcher ? 'Recent Notes' : 'Recent')),
+                    React.createElement("button", { type: "button", className: `fjgduo-focus-panel__tab${mode === 'bookmarks' ? ' is-active' : ''}`, "aria-pressed": mode === 'bookmarks', onClick: () => switchMode('bookmarks') },
                         React.createElement(FaRegBookmark, { size: 13 }),
                         React.createElement("span", null, "Bookmarks")))),
             (!props.adaptive || searchVisible) && React.createElement("div", { className: "fjgduo-input-container" },
-                React.createElement("input", { ref: search, type: "search", placeholder: mode === 'bookmarks' ? 'Search bookmarks...' : 'Search recent notes...', value: query, onChange: (event) => setQuery(event.target.value) })),
-            React.createElement("div", { className: "fjgduo-file-tree-header" }, PANEL_LABELS[mode])),
+                React.createElement("input", { ref: search, type: "search", "aria-label": mode === 'bookmarks' ? 'Search bookmarks' : 'Search recent notes', placeholder: mode === 'bookmarks' ? 'Search bookmarks...' : 'Search recent notes...', value: query, onChange: (event) => setQuery(event.target.value) })),
+            !props.launcher && React.createElement("div", { className: "fjgduo-file-tree-header" }, PANEL_LABELS[mode])),
         React.createElement("div", { className: "fjgduo-focus-panel__body" }, mode === 'bookmarks' ? (React.createElement(BookmarkPanel, { plugin: plugin, query: query, bookmarkStack: bookmarkStack, setBookmarkStack: setBookmarkStack, openBookmark: openBookmark })) : (React.createElement(RecentPanel, { plugin: plugin, query: query, openFilePath: openFilePath })))));
 }
 function RecentPanel(props) {
@@ -4875,6 +4883,16 @@ function ShortcutPanel({ sections, run, context }) {
         React.createElement("div", { ref: host }));
 }
 
+class LauncherModal extends obsidian.Modal {
+    constructor(app, afterClose) {
+        super(app);
+        this.afterClose = afterClose;
+        this.modalEl.classList.add('fjgduo-modal', 'fjgduo-launcher');
+        this.modalEl.dataset.ignoreSwipe = 'true';
+    }
+    onOpen() { this.titleEl.textContent = 'Launcher'; }
+    onClose() { this.afterClose(); }
+}
 function AdaptiveNavigator({ plugin, fileTreeView }) {
     var _a, _b;
     const [view$1, setView] = Recoil_index_22(view);
@@ -4884,6 +4902,28 @@ function AdaptiveNavigator({ plugin, fileTreeView }) {
     const [files] = Recoil_index_22(ozFileList);
     const host = reactExports.useRef(null), pane = reactExports.useRef(null), fileStart = reactExports.useRef(null);
     const folderActions = reactExports.useRef([]), fileActions = reactExports.useRef([]);
+    const launcher = reactExports.useRef(null);
+    const [launch, setLaunch] = reactExports.useState(null);
+    reactExports.useEffect(() => () => {
+        const modal = launcher.current;
+        launcher.current = null;
+        modal === null || modal === void 0 ? void 0 : modal.close();
+    }, []);
+    const openLauncher = (mode) => {
+        if (launcher.current) {
+            setLaunch({ modal: launcher.current, mode });
+            return;
+        }
+        const modal = new LauncherModal(plugin.app, () => {
+            if (launcher.current !== modal)
+                return;
+            launcher.current = null;
+            setLaunch(null);
+        });
+        launcher.current = modal;
+        modal.open();
+        setLaunch({ modal, mode });
+    };
     const [width, setWidth] = reactExports.useState(0);
     const [shortcuts, setShortcuts] = reactExports.useState(() => obsidian.Platform.isMobile && localStorage.getItem('fjgFileFocusDuo-mobile-panel') !== 'folders');
     const [, refreshShortcuts] = reactExports.useState(0);
@@ -5070,8 +5110,8 @@ function AdaptiveNavigator({ plugin, fileTreeView }) {
                     { id: 'folders', title: 'Go Back to Folder View / Close File Pane', run: browseFolders },
                     { id: 'root', title: 'Jump to vault root', run: () => navigate(plugin.app.vault.getRoot()) },
                     ...(atRoot ? [{ id: 'root-files', title: rootFilesVisible ? 'Hide vault-root files' : 'Show vault-root files', run: () => setRootFilesVisible(value => !value) }] : []),
-                    { id: 'recent', title: 'Recent Notes', run: () => { setShortcuts(false); setView('recent'); } },
-                    { id: 'bookmarks', title: 'Bookmarks', run: () => { setShortcuts(false); setView('bookmarks'); } },
+                    { id: 'recent', title: 'Recent Notes', run: () => openLauncher('recent') },
+                    { id: 'bookmarks', title: 'Bookmarks', run: () => openLauncher('bookmarks') },
                 ]],
             ['Folder buttons', folderActions.current],
             ['Pane', [{ id: 'settings', title: 'File Focus settings', run: settingsAction }, { id: 'pin', title: 'Toggle pane pin', run: pinAction }]],
@@ -5117,9 +5157,9 @@ function AdaptiveNavigator({ plugin, fileTreeView }) {
                 React.createElement(FaHome, { "aria-hidden": "true" })),
             React.createElement("button", { "data-ignore-swipe": "true", "aria-label": "Open FJG Objective Manager", title: "FJG Objective Manager", onClick: e => folderAction('tasks', e) },
                 React.createElement(LuListChecks, { "aria-hidden": "true" })),
-            React.createElement("button", { "data-ignore-swipe": "true", "aria-label": "Recent", title: "Recent", "aria-pressed": view$1 === 'recent', onClick: () => { setShortcuts(false); setView('recent'); } },
+            React.createElement("button", { "data-ignore-swipe": "true", "aria-label": "Recent", title: "Recent", "aria-haspopup": "dialog", onClick: () => openLauncher('recent') },
                 React.createElement(FaHistory, null)),
-            React.createElement("button", { "data-ignore-swipe": "true", "aria-label": "Bookmarks", title: "Bookmarks", "aria-pressed": view$1 === 'bookmarks', onClick: () => { setShortcuts(false); setView('bookmarks'); } },
+            React.createElement("button", { "data-ignore-swipe": "true", "aria-label": "Bookmarks", title: "Bookmarks", "aria-haspopup": "dialog", onClick: () => openLauncher('bookmarks') },
                 React.createElement(FaRegBookmark, null)),
             React.createElement("button", { "data-ignore-swipe": "true", "aria-label": "All File Focus buttons", title: "All File Focus buttons", onClick: allButtons, onContextMenu: e => { e.preventDefault(); overflow(e); } }, "\u22EF")));
     const resize = (e) => {
@@ -5149,7 +5189,12 @@ function AdaptiveNavigator({ plugin, fileTreeView }) {
                     } } }),
                 React.createElement("div", { ref: fileStart, hidden: !showFiles, className: `duo-file-column${wide ? ' duo-pane' : ''}`, "aria-label": "Folder files" },
                     React.createElement(FileComponent, { plugin: plugin, wide: wide, adaptive: true, actionsRef: fileActions }))),
-            focusMode && !shortcuts && React.createElement(FocusPanel, { plugin: plugin, mode: view$1, adaptive: true })));
+            focusMode && !shortcuts && React.createElement(FocusPanel, { plugin: plugin, mode: view$1, adaptive: true })),
+        launch && reactDomExports.createPortal(React.createElement(FocusPanel, { plugin: plugin, mode: launch.mode, launcher: {
+                onSwitch: mode => setLaunch({ modal: launch.modal, mode }),
+                onClose: () => launch.modal.close(),
+                onRevealFolder: () => setShortcuts(false),
+            } }), launch.modal.contentEl));
 }
 
 const SingleViewVertical = (props) => {

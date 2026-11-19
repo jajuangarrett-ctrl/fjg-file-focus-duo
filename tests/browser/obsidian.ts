@@ -5,7 +5,7 @@ export const Platform={isMobile:true,isTablet:true,isPhone:false,isIosApp:true};
 export class Notice { constructor(message:any){(window as any).notices.push(String(message));} }
 export class Component {load(){} unload(){}}
 export const setIcon=(el:HTMLElement,name:string)=>{el.dataset.icon=name;};
-export class Modal {modalEl=document.createElement('div');app:any;contentEl=document.createElement('div');titleEl:any=document.createElement('div');constructor(app:any){this.app=app;}open(){(window as any).modals.push(this.constructor.name);if(this.constructor.name==='AllButtonsModal'){this.modalEl.classList.add('modal');this.modalEl.append(this.titleEl,this.contentEl);document.body.appendChild(this.modalEl);(this as any).onOpen();}}close(){this.modalEl.remove();(this as any).onClose?.();}}
+export class Modal {modalEl=document.createElement('div');app:any;contentEl=document.createElement('div');titleEl:any=document.createElement('div');constructor(app:any){this.app=app;}open(){(window as any).modals.push(this.constructor.name);if(['AllButtonsModal','LauncherModal'].includes(this.constructor.name)){this.modalEl.classList.add('modal');this.modalEl.append(this.titleEl,this.contentEl);if(this.constructor.name==='LauncherModal'){this.modalEl.setAttribute('role','dialog');this.modalEl.setAttribute('aria-label','Launcher');const close=document.createElement('button');close.textContent='Close';close.addEventListener('click',()=>this.close());this.modalEl.prepend(close);}document.body.appendChild(this.modalEl);(this as any).onOpen();}}close(){this.modalEl.remove();(this as any).onClose?.();}}
 export class FuzzySuggestModal extends Modal {}
 export class PluginSettingTab {}
 export class Setting {}

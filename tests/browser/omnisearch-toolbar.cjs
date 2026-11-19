@@ -65,11 +65,13 @@ const http = require('node:http');
       assert.equal(await filter.inputValue(), 'Note 002');
       for (const mode of ['Recent', 'Bookmarks']) {
         await toolbar.getByRole('button', {name:mode, exact:true}).click();
-        const before = await page.locator('.fjgduo-focus-panel').innerText();
+        const launcher = page.getByRole('dialog', {name:'Launcher'});
+        const tab = mode === 'Recent' ? 'Recent Notes' : mode;
+        assert.equal(await launcher.getByRole('button', {name:tab, exact:true}).getAttribute('aria-pressed'), 'true');
+        assert.equal(await launcher.getByRole('searchbox').count(), 1);
+        await launcher.getByRole('button', {name:'Close', exact:true}).click();
         await openAndDismiss();
-        assert.equal(await toolbar.getByRole('button', {name:mode, exact:true}).getAttribute('aria-pressed'), 'true');
-        assert.equal(await page.locator('.fjgduo-focus-panel').innerText(), before);
-        assert.equal(await page.locator('.fjgduo-focus-panel input').count(), 0);
+        assert.equal(await filter.inputValue(), 'Note 002');
       }
       await page.evaluate(() => { window.fixture.app.commands.executeCommandById = () => false; });
       await search.click();

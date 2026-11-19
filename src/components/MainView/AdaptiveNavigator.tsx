@@ -1,6 +1,8 @@
 import { LuMic } from 'react-icons/lu';
 import React, { useLayoutEffect, useEffect, useRef, useState } from 'react';
-import { Menu, Notice, TFolder, Platform } from 'obsidian';
+import { App, Menu, Modal, Notice, TFolder, Platform } from 'obsidian';
+import { createPortal } from 'react-dom';
+import type { FocusPanelMode } from 'utils/types';
 import { useRecoilState } from 'recoil';
 import * as state from 'recoil/pluginState';
 import FileTreeAlternativePlugin from 'main';
@@ -17,6 +19,16 @@ import { ShortcutPanel } from './ShortcutPanel';
 import { DuoAction, FOLDER_SELECTED, FOCUS_SEARCH } from './duoActions';
 
 
+class LauncherModal extends Modal {
+    constructor(app: App, private afterClose: () => void) {
+        super(app);
+        this.modalEl.classList.add('fjgduo-modal', 'fjgduo-launcher');
+        this.modalEl.dataset.ignoreSwipe = 'true';
+    }
+    onOpen() { this.titleEl.textContent = 'Launcher'; }
+    onClose() { this.afterClose(); }
+}
+
 export function AdaptiveNavigator({plugin, fileTreeView}: {plugin: FileTreeAlternativePlugin; fileTreeView: FileTreeView}) {
     const [view, setView] = useRecoilState(state.view);
     const [path, setPath] = useRecoilState(state.activeFolderPath);
@@ -25,6 +37,27 @@ export function AdaptiveNavigator({plugin, fileTreeView}: {plugin: FileTreeAlter
     const [files] = useRecoilState(state.ozFileList);
     const host = useRef<HTMLDivElement>(null), pane = useRef<HTMLDivElement>(null), fileStart = useRef<HTMLDivElement>(null);
     const folderActions = useRef<DuoAction[]>([]), fileActions = useRef<DuoAction[]>([]);
+    const launcher = useRef<LauncherModal | null>(null);
+    const [launch, setLaunch] = useState<{ modal: LauncherModal; mode: FocusPanelMode } | null>(null);
+    useEffect(() => () => {
+        const modal = launcher.current;
+        launcher.current = null;
+        modal?.close();
+    }, []);
+    const openLauncher = (mode: FocusPanelMode) => {
+        if (launcher.current) {
+            setLaunch({ modal: launcher.current, mode });
+            return;
+        }
+        const modal = new LauncherModal(plugin.app, () => {
+            if (launcher.current !== modal) return;
+            launcher.current = null;
+            setLaunch(null);
+        });
+        launcher.current = modal;
+        modal.open();
+        setLaunch({ modal, mode });
+    };
     const [width, setWidth] = useState(0);
     const [shortcuts, setShortcuts] = useState(()=>Platform.isMobile && localStorage.getItem('fjgFileFocusDuo-mobile-panel')!=='folders');
     const [,refreshShortcuts]=useState(0);
@@ -150,8 +183,8 @@ export function AdaptiveNavigator({plugin, fileTreeView}: {plugin: FileTreeAlter
                 {id:'folders', title:'Go Back to Folder View / Close File Pane', run:browseFolders},
                 {id:'root', title:'Jump to vault root', run:()=>navigate(plugin.app.vault.getRoot())},
                 ...(atRoot ? [{id:'root-files',title:rootFilesVisible ? 'Hide vault-root files' : 'Show vault-root files',run:()=>setRootFilesVisible(value=>!value)}] : []),
-                {id:'recent',title:'Recent Notes',run:()=>{setShortcuts(false);setView('recent');}},
-                {id:'bookmarks',title:'Bookmarks',run:()=>{setShortcuts(false);setView('bookmarks');}},
+                {id:'recent',title:'Recent Notes',run:()=>openLauncher('recent')},
+                {id:'bookmarks',title:'Bookmarks',run:()=>openLauncher('bookmarks')},
             ]],
             ['Folder buttons', folderActions.current],
             ['Pane', [{id:'settings',title:'File Focus settings',run:settingsAction},{id:'pin',title:'Toggle pane pin',run:pinAction}]],
@@ -178,8 +211,8 @@ export function AdaptiveNavigator({plugin, fileTreeView}: {plugin: FileTreeAlter
         <button data-ignore-swipe="true" aria-label="Talk to Vault" title="Talk to Vault" onClick={() => plugin.openVaultVoice({ folder: path, note: plugin.app.workspace.getActiveFile()?.path || '' })}><LuMic aria-hidden="true"/></button>
         <button data-ignore-swipe="true" aria-label="Open Vault Control Center" title="Vault Control Center" onClick={e => folderAction('home',e)}><Icons.FaHome aria-hidden="true"/></button>
         <button data-ignore-swipe="true" aria-label="Open FJG Objective Manager" title="FJG Objective Manager" onClick={e => folderAction('tasks',e)}><Icons.LuListChecks aria-hidden="true"/></button>
-        <button data-ignore-swipe="true" aria-label="Recent" title="Recent" aria-pressed={view==='recent'} onClick={() => {setShortcuts(false);setView('recent');}}><Icons.FaHistory/></button>
-        <button data-ignore-swipe="true" aria-label="Bookmarks" title="Bookmarks" aria-pressed={view==='bookmarks'} onClick={() => {setShortcuts(false);setView('bookmarks');}}><Icons.FaRegBookmark/></button>
+        <button data-ignore-swipe="true" aria-label="Recent" title="Recent" aria-haspopup="dialog" onClick={() => openLauncher('recent')}><Icons.FaHistory/></button>
+        <button data-ignore-swipe="true" aria-label="Bookmarks" title="Bookmarks" aria-haspopup="dialog" onClick={() => openLauncher('bookmarks')}><Icons.FaRegBookmark/></button>
         <button data-ignore-swipe="true" aria-label="All File Focus buttons" title="All File Focus buttons" onClick={allButtons} onContextMenu={e=>{e.preventDefault();overflow(e);}}>⋯</button>
         </div>
     </div>;
@@ -204,5 +237,13 @@ export function AdaptiveNavigator({plugin, fileTreeView}: {plugin: FileTreeAlter
             </div>
             {focusMode && !shortcuts && <FocusPanel plugin={plugin} mode={view as 'recent'|'bookmarks'} adaptive/>}
         </div>
+        {launch && createPortal(
+            <FocusPanel plugin={plugin} mode={launch.mode} launcher={{
+                onSwitch: mode => setLaunch({ modal: launch.modal, mode }),
+                onClose: () => launch.modal.close(),
+                onRevealFolder: () => setShortcuts(false),
+            }}/>,
+            launch.modal.contentEl
+        )}
     </div>;
 }

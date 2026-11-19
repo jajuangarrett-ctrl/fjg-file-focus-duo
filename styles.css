@@ -1140,3 +1140,24 @@ body.is-mobile .workspace-drawer.mod-left:has(.workspace-leaf.mod-active .duo-na
 .duo-navigator.duo-wide .duo-columns { flex:1 1 auto; height:auto !important; min-height:0; }
 .duo-navigator.duo-compact .duo-columns { flex:none; }
 .duo-navigator.duo-root-folders-only .duo-folder-column { height:auto; }
+
+/* Keep controls large on the folded/compact phone without leaving a lone
+   overflow action on a second line. At narrow widths use two even rows. */
+body.is-phone .duo-navigator.duo-compact .duo-toolbar { container:duo-compact-toolbar / inline-size; }
+body.is-phone .duo-navigator.duo-compact .duo-icon-row { display:grid; grid-template-columns:repeat(4,minmax(44px,1fr)); }
+@container duo-compact-toolbar (min-width: 368px) {
+    body.is-phone .duo-navigator.duo-compact .duo-icon-row { grid-template-columns:repeat(8,minmax(44px,1fr)); }
+}
+body.is-phone .duo-navigator.duo-compact .duo-icon-row button { width:100%; height:46px; }
+body.is-phone .duo-navigator.duo-compact .duo-icon-row button svg { width:26px; height:26px; }
+body.is-phone .duo-navigator.duo-compact .duo-toolbar .duo-back svg { width:30px; height:30px; flex-basis:30px; }
+body.is-phone .duo-navigator.duo-compact .fjgduo-folder-glyph { width:30px; height:30px; flex-basis:30px; }
+body.is-phone .duo-navigator.duo-compact .fjgduo-expand-chevron { width:18px; height:18px; }
+
+.fjgduo-launcher .fjgduo-focus-panel { min-width:0; }
+.fjgduo-launcher .fjgduo-focus-panel__header { position:static; padding:0; }
+.fjgduo-launcher .fjgduo-focus-panel__tabs { width:100%; }
+.fjgduo-launcher .fjgduo-focus-panel__tab { flex:1; min-width:0; min-height:44px; }
+.fjgduo-launcher input[type=search] { width:100%; min-height:44px; font-size:16px; }
+.fjgduo-launcher .fjgduo-focus-panel__body { max-height:55vh; overflow:auto; }
+.fjgduo-launcher .fjgduo-focus-panel__row { min-height:44px; touch-action:manipulation; }
