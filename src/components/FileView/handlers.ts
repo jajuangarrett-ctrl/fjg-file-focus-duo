@@ -1,9 +1,10 @@
+import { openMobileFolderFile } from 'utils/mobileFolderOpen';
 import { menuPosition, trashWithFallback, DuoPreview } from 'utils/duoRuntime';
 import FileTreeAlternativePlugin from 'main';
 import { VaultChangeModal, MoveSuggestionModal, ConfirmationModal } from 'modals';
 import { OZFile, eventTypes } from 'utils/types';
 import * as Util from 'utils/Utils';
-import { TFile, TFolder } from 'obsidian';
+import { Platform, TFile, TFolder } from 'obsidian';
 import * as newFileUtils from 'utils/newFile';
 import { SetterOrUpdater } from 'recoil';
 import * as Icons from 'utils/icons';
@@ -249,6 +250,11 @@ export const handleSearch = (params: {
 // Handle Click Event on File - Allows Open with Cmd/Ctrl
 export const openFile = (params: { file: OZFile; e: React.MouseEvent; plugin: FileTreeAlternativePlugin; setActiveOzFile: SetterOrUpdater<OZFile> }) => {
     let { file, e, plugin, setActiveOzFile } = params;
+    if (Platform.isMobile && !e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey) {
+        void openMobileFolderFile(plugin.app, file.path);
+        setActiveOzFile(file);
+        return;
+    }
     newFileUtils.openFile({
         file: file,
         app: plugin.app,

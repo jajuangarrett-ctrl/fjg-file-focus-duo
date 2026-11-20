@@ -1,3 +1,4 @@
+import { rememberMobileFolderDocument } from 'utils/mobileFolderOpen';
 import { Plugin, App, EventRef, Modal, Setting, addIcon, TAbstractFile, TFile, TFolder, Notice, Platform, WorkspaceLeaf } from 'obsidian';
 import { FileTreeView } from './FileTreeView';
 import { ZoomInIcon, ZoomOutIcon, ZoomOutDoubleIcon, LocationIcon, SpaceIcon } from './utils/icons';
@@ -89,6 +90,7 @@ export default class FileTreeAlternativePlugin extends Plugin {
         if (this.settings.foldAwareLayout === true) this.syncFoldLayout();
         await this.importOriginalVisibilitySettings();
         this.lastActiveFile = this.app.workspace.getActiveFile();
+        if (Platform.isMobile) rememberMobileFolderDocument(this.app.workspace, this.app.workspace.activeLeaf);
         this.addCommand({ id: 'talk-to-vault', name: 'Talk to Your Vault', callback: () => this.openVaultVoice() });
 
         // Register File Tree View
@@ -109,6 +111,7 @@ export default class FileTreeAlternativePlugin extends Plugin {
 
         this.registerEvent(
             this.app.workspace.on('active-leaf-change', async (leaf) => {
+                if (Platform.isMobile) rememberMobileFolderDocument(this.app.workspace, leaf);
                 if (leaf?.getViewState().type !== this.VIEW_TYPE) return;
                 await this.hydrateFileTreeLeaf(leaf, true);
                 if (typeof (leaf.view as FileTreeView).activateWhenVisible === 'function') {
@@ -594,7 +597,10 @@ export default class FileTreeAlternativePlugin extends Plugin {
     };
 
     onFileOpen = (file: TFile | null) => {
-        if (file) this.lastActiveFile = file;
+        if (file) {
+            this.lastActiveFile = file;
+            if (Platform.isMobile) rememberMobileFolderDocument(this.app.workspace, this.app.workspace.activeLeaf);
+        }
         if (this.shouldFollowActiveFile()) this.dispatchActiveFileChange(file);
     };
 
