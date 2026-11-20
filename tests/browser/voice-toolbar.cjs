@@ -12,10 +12,11 @@ const assert=require('node:assert/strict');
    const voice=page.getByRole('button',{name:'Talk to Vault',exact:true});await voice.waitFor();
    const info=await page.locator('.duo-icon-row').evaluate(row=>({width:row.clientWidth,scroll:row.scrollWidth,buttons:[...row.querySelectorAll('button')].map(b=>({label:b.ariaLabel,width:b.getBoundingClientRect().width,height:b.getBoundingClientRect().height,x:b.getBoundingClientRect().x,right:b.getBoundingClientRect().right}))}));
    console.log(JSON.stringify({panel:width,...info}));
-   assert.equal(info.buttons.length,6);assert.ok(info.buttons.every(b=>b.width>=44&&b.height>=44));
+   assert.deepEqual(info.buttons.map(b=>b.label),['Open Omnisearch','New note','Talk to Vault','Open Vault Control Center','Open FJG Objective Manager','Recent','Bookmarks','All File Focus buttons']);assert.ok(info.buttons.every(b=>b.width>=44&&b.height>=44));
    await voice.click();assert.equal(await page.evaluate(()=>window.voiceSelection.folder),'');
   }
-  await page.locator('.fjgduo-folder-block').filter({hasText:'Projects'}).click();
+  await page.getByRole('button',{name:'Open Projects folder',exact:true}).tap();
+  await page.waitForFunction(()=>document.querySelector('.duo-back')?.textContent.includes('Projects'));
   await page.getByRole('button',{name:'Talk to Vault',exact:true}).click();
   assert.deepEqual(await page.evaluate(()=>window.voiceSelection),{folder:'Projects',note:'Projects/Note 0000.md'});
   assert.deepEqual(await page.evaluate(()=>window.testVoiceKeyResolution()),{shared:true,own:true,reads:1,recoveries:0,saves:0});

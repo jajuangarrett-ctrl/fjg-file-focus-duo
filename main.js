@@ -4883,6 +4883,202 @@ function ShortcutPanel({ sections, run, context }) {
         React.createElement("div", { ref: host }));
 }
 
+const preparedHandoffs = new WeakMap();
+const recentOwners = new WeakMap();
+/** Capture while the old classes and tuning still apply, before root.render is queued. */
+function prepareFoldScrollHandoff(root) {
+    const host = root.querySelector('.duo-navigator');
+    if (host && !preparedHandoffs.has(host))
+        preparedHandoffs.set(host, capture(host, recentOwners.get(host)));
+}
+function visible(el) {
+    return Boolean((el === null || el === void 0 ? void 0 : el.isConnected) && el.getClientRects().length && el.clientHeight > 0 && el.clientWidth > 0);
+}
+function frameTop(owner) {
+    var _a;
+    const rect = owner.getBoundingClientRect();
+    const toolbar = owner.classList.contains('duo-main-scroll') ? owner.querySelector('.duo-toolbar-fixed') : null;
+    return Math.max(rect.top, (_a = toolbar === null || toolbar === void 0 ? void 0 : toolbar.getBoundingClientRect().bottom) !== null && _a !== void 0 ? _a : rect.top);
+}
+function capture(host, recentOwner) {
+    const main = host.querySelector('.duo-main-scroll');
+    if (!visible(main))
+        return null;
+    const columns = host.querySelector('.duo-columns');
+    if (!visible(columns))
+        return { primary: 'main', anchors: { main: { target: main, offset: main.scrollTop } } };
+    const folders = columns.querySelector('.duo-folder-column');
+    const files = columns.querySelector('.duo-file-column');
+    const fileContent = files === null || files === void 0 ? void 0 : files.querySelector('.duo-file-content');
+    const wide = host.classList.contains('duo-wide') && visible(files) && files.classList.contains('duo-pane');
+    const anchors = {};
+    const makeAnchor = (owner, target) => ({ target, offset: frameTop(owner) - target.getBoundingClientRect().top });
+    if (wide) {
+        if (visible(folders))
+            anchors.folders = makeAnchor(folders, folders.firstElementChild || folders);
+        anchors.files = makeAnchor(files, fileContent || files);
+        const focus = host.ownerDocument.activeElement;
+        const focusInFiles = files.contains(focus);
+        const editingFileSearch = focusInFiles && (focus === null || focus === void 0 ? void 0 : focus.matches('input, textarea, [contenteditable=true]'));
+        const primary = editingFileSearch ? 'files' :
+            recentOwner === 'files' || recentOwner === 'folders' ? recentOwner :
+                focusInFiles || files.scrollTop > 0 ? 'files' : 'folders';
+        return { primary, anchors };
+    }
+    const inFiles = visible(files) && (files.contains(host.ownerDocument.activeElement) ||
+        files.getBoundingClientRect().top <= frameTop(main) + 1);
+    const primary = inFiles ? 'files' : visible(folders) ? 'folders' : 'main';
+    const target = primary === 'files' ? fileContent || files : primary === 'folders' ? folders : main;
+    // A main-pane anchor's reference is its scroll origin, not its moving viewport.
+    anchors[primary] = target === main ? { target, offset: main.scrollTop } : makeAnchor(main, target);
+    return { primary, anchors };
+}
+function restore(host, position) {
+    const main = host.querySelector('.duo-main-scroll');
+    if (!visible(main))
+        return;
+    const files = host.querySelector('.duo-file-column');
+    const folders = host.querySelector('.duo-folder-column');
+    const wide = host.classList.contains('duo-wide') && visible(files) && files.classList.contains('duo-pane');
+    if (wide && position.primary !== 'main')
+        main.scrollTop = 0;
+    for (const area of (wide ? ['main', 'folders', 'files'] : [position.primary])) {
+        const anchor = position.anchors[area];
+        const owner = wide && area !== 'main' ? area === 'files' ? files : folders : main;
+        if (!anchor || !visible(owner) || !visible(anchor.target))
+            continue;
+        if (area === 'main')
+            owner.scrollTop = anchor.offset;
+        else
+            owner.scrollTop += anchor.target.getBoundingClientRect().top + anchor.offset - frameTop(owner);
+    }
+}
+/** No DOM of its own, and no subscriptions until a fold profile is applied. */
+class FoldScrollAnchor extends React.Component {
+    getSnapshotBeforeUpdate(prev) {
+        var _a, _b;
+        const changed = prev.profile !== this.props.profile || prev.wide !== this.props.wide;
+        if (prev.profile === undefined && this.props.profile === undefined)
+            return null;
+        const host = this.props.host.current;
+        const prepared = host ? preparedHandoffs.get(host) : undefined;
+        if (host)
+            preparedHandoffs.delete(host);
+        const navigationChanged = prev.navigation.some((value, index) => this.props.navigation[index] !== value);
+        if (navigationChanged || this.props.hasNavigationPending()) {
+            (_a = this.cancelRestore) === null || _a === void 0 ? void 0 : _a.call(this);
+            return null;
+        }
+        if (!changed)
+            return null;
+        (_b = this.cancelRestore) === null || _b === void 0 ? void 0 : _b.call(this);
+        return prepared !== undefined ? prepared : host ? capture(host, recentOwners.get(host)) : null;
+    }
+    componentDidMount() { this.updateTracking(); }
+    componentDidUpdate(_prev, _state, position) {
+        this.updateTracking();
+        const host = this.props.host.current;
+        if (!host || !position)
+            return;
+        if (this.props.profile === undefined) {
+            // Finish the legacy handoff in this commit, with no surviving fold callbacks.
+            restore(host, position);
+            return;
+        }
+        const win = host.ownerDocument.defaultView;
+        if (!win)
+            return;
+        let first = 0, second = 0;
+        this.cancelRestore = () => {
+            win.cancelAnimationFrame(first);
+            win.cancelAnimationFrame(second);
+            this.cancelRestore = undefined;
+        };
+        first = win.requestAnimationFrame(() => {
+            second = win.requestAnimationFrame(() => {
+                var _a, _b;
+                this.cancelRestore = undefined;
+                if (this.props.host.current !== host || !visible(host) || this.props.hasNavigationPending())
+                    return;
+                restore(host, position);
+                (_b = (_a = this.props).remeasure) === null || _b === void 0 ? void 0 : _b.call(_a);
+            });
+        });
+    }
+    componentWillUnmount() {
+        var _a, _b;
+        (_a = this.cancelRestore) === null || _a === void 0 ? void 0 : _a.call(this);
+        (_b = this.stopTracking) === null || _b === void 0 ? void 0 : _b.call(this);
+    }
+    updateTracking() {
+        var _a, _b;
+        if (this.props.profile === undefined) {
+            (_a = this.cancelRestore) === null || _a === void 0 ? void 0 : _a.call(this);
+            (_b = this.stopTracking) === null || _b === void 0 ? void 0 : _b.call(this);
+            this.stopTracking = undefined;
+            const host = this.props.host.current;
+            if (host) {
+                recentOwners.delete(host);
+                preparedHandoffs.delete(host);
+            }
+            return;
+        }
+        const host = this.props.host.current;
+        const win = host === null || host === void 0 ? void 0 : host.ownerDocument.defaultView;
+        if (!host || !win || this.stopTracking)
+            return;
+        const input = (evt) => {
+            const target = evt.target instanceof Element && evt.target.ownerDocument === host.ownerDocument ? evt.target : null;
+            if (target === null || target === void 0 ? void 0 : target.closest('.duo-file-column'))
+                recentOwners.set(host, 'files');
+            else if (target === null || target === void 0 ? void 0 : target.closest('.duo-folder-column'))
+                recentOwners.set(host, 'folders');
+            cancel();
+        };
+        const scroll = (evt) => {
+            var _a, _b;
+            // Scrollbar, keyboard, and programmatic reveal may scroll without a pointer event.
+            // Don't let browsers' layout clamping pulse change ownership during a handoff.
+            if (preparedHandoffs.has(host) || this.cancelRestore)
+                return;
+            const target = evt.target;
+            if ((target === null || target === void 0 ? void 0 : target.scrollTop) && ((_a = target.classList) === null || _a === void 0 ? void 0 : _a.contains('duo-file-column')))
+                recentOwners.set(host, 'files');
+            if ((target === null || target === void 0 ? void 0 : target.scrollTop) && ((_b = target.classList) === null || _b === void 0 ? void 0 : _b.contains('duo-folder-column')))
+                recentOwners.set(host, 'folders');
+        };
+        const cancel = () => {
+            var _a;
+            if (preparedHandoffs.has(host))
+                preparedHandoffs.set(host, null);
+            (_a = this.cancelRestore) === null || _a === void 0 ? void 0 : _a.call(this);
+        };
+        const visibility = () => {
+            if (host.ownerDocument.visibilityState === 'hidden')
+                cancel();
+        };
+        const inputEvents = ['pointerdown', 'touchstart', 'wheel', 'keydown'];
+        const jumpEvents = ['fjgduo-reveal-file-row', 'fjgduo-folder-selected', 'fjg-vcc-folder-context', 'fjgduo-show-root-files'];
+        for (const evt of inputEvents)
+            host.addEventListener(evt, input, { capture: true, passive: true });
+        host.addEventListener('scroll', scroll, { capture: true, passive: true });
+        host.ownerDocument.addEventListener('visibilitychange', visibility);
+        for (const evt of jumpEvents)
+            win.addEventListener(evt, cancel);
+        this.stopTracking = () => {
+            for (const evt of inputEvents)
+                host.removeEventListener(evt, input, true);
+            host.removeEventListener('scroll', scroll, true);
+            host.ownerDocument.removeEventListener('visibilitychange', visibility);
+            for (const evt of jumpEvents)
+                win.removeEventListener(evt, cancel);
+            recentOwners.delete(host);
+            preparedHandoffs.delete(host);
+        };
+    }
+    render() { return this.props.children; }
+}
+
 class LauncherModal extends obsidian.Modal {
     constructor(app, afterClose) {
         super(app);
@@ -4893,7 +5089,7 @@ class LauncherModal extends obsidian.Modal {
     onOpen() { this.titleEl.textContent = 'Launcher'; }
     onClose() { this.afterClose(); }
 }
-function AdaptiveNavigator({ plugin, fileTreeView }) {
+function AdaptiveNavigator({ plugin, fileTreeView, foldProfile, foldRemeasure }) {
     var _a, _b;
     const [view$1, setView] = Recoil_index_22(view);
     const [path, setPath] = Recoil_index_22(activeFolderPath);
@@ -4949,7 +5145,8 @@ function AdaptiveNavigator({ plugin, fileTreeView }) {
         const value = Number(localStorage.getItem('fjgFileFocusDuo-column-ratio'));
         return value >= .25 && value <= .55 ? value : .35;
     });
-    const wide = width >= plugin.settings.duoColumnWidth;
+    const [foldDividerUsed, setFoldDividerUsed] = reactExports.useState(false);
+    const wide = foldProfile === undefined ? width >= plugin.settings.duoColumnWidth : foldProfile === 'expanded';
     const focusMode = view$1 === 'recent' || view$1 === 'bookmarks';
     const atRoot = !path || path === '/';
     const [rootFilesVisible, setRootFilesVisible] = reactExports.useState(false);
@@ -4972,7 +5169,18 @@ function AdaptiveNavigator({ plugin, fileTreeView }) {
             observer.observe(host.current);
         return () => observer.disconnect();
     }, []);
-    reactExports.useLayoutEffect(() => { pendingJump.current = Boolean(path) && !focusMode; }, [path, wide, focusMode, jump]);
+    const lastNavigation = reactExports.useRef();
+    const previousNavigation = lastNavigation.current;
+    const foldTransitionOnly = Boolean(previousNavigation &&
+        previousNavigation.foldProfile !== foldProfile &&
+        previousNavigation.path === path && previousNavigation.focusMode === focusMode && previousNavigation.jump === jump);
+    reactExports.useLayoutEffect(() => {
+        lastNavigation.current = { path, wide, focusMode, jump, foldProfile };
+    });
+    reactExports.useLayoutEffect(() => {
+        if (!foldTransitionOnly)
+            pendingJump.current = Boolean(path) && !focusMode;
+    }, [path, wide, focusMode, jump]);
     reactExports.useLayoutEffect(() => {
         if (!path || focusMode || !pendingJump.current || !files.length)
             return;
@@ -5167,34 +5375,44 @@ function AdaptiveNavigator({ plugin, fileTreeView }) {
             return;
         const rect = host.current.getBoundingClientRect();
         const next = Math.max(.25, Math.min(.55, (e.clientX - rect.left) / rect.width));
+        if (foldProfile !== undefined)
+            setFoldDividerUsed(true);
         setRatio(next);
         localStorage.setItem('fjgFileFocusDuo-column-ratio', String(next));
     };
-    return React.createElement("div", { ref: host, className: `duo-navigator ${obsidian.Platform.isPhone && plugin.settings.compactTextPhone ? 'duo-compact-text' : ''} ${wide ? 'duo-wide' : 'duo-compact'} ${plugin.settings.fixedHeaderInFileList ? '' : 'duo-unpinned'} ${showFiles ? '' : 'duo-root-folders-only'}`, "data-layout": wide ? 'columns' : 'drilldown', style: { '--duo-folder-ratio': `${ratio * 100}%` } },
-        React.createElement("div", { ref: pane, className: "duo-pane duo-main-scroll" },
-            toolbar,
-            obsidian.Platform.isMobile && React.createElement("div", { className: "duo-panel-switch", role: "group", "aria-label": "Left panel contents" },
-                React.createElement("button", { "data-ignore-swipe": "true", "aria-pressed": shortcuts, onClick: () => choosePanel(true) }, "Shortcuts"),
-                React.createElement("button", { "data-ignore-swipe": "true", "aria-pressed": !shortcuts, onClick: () => choosePanel(false) }, "Folders")),
-            shortcuts && React.createElement(ShortcutPanel, { context: path || plugin.app.vault.getName(), sections: actionSections, run: runShortcut }),
-            React.createElement("div", { className: "duo-columns", hidden: focusMode || shortcuts },
-                React.createElement("div", { className: "duo-folder-column", "aria-label": "Folders" },
-                    React.createElement(MainFolder, { plugin: plugin, adaptive: true, actionsRef: folderActions })),
-                wide && showFiles && React.createElement("div", { className: "duo-divider", role: "separator", "aria-label": "Resize folder column", "aria-orientation": "vertical", "aria-valuemin": 25, "aria-valuemax": 55, "aria-valuenow": Math.round(ratio * 100), tabIndex: 0, onPointerDown: e => { e.currentTarget.setPointerCapture(e.pointerId); resize(e); }, onPointerMove: e => { if (e.currentTarget.hasPointerCapture(e.pointerId))
-                        resize(e); }, onKeyDown: e => { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-                        e.preventDefault();
-                        const n = Math.max(.25, Math.min(.55, ratio + (e.key === 'ArrowLeft' ? -0.025 : .025)));
-                        setRatio(n);
-                        localStorage.setItem('fjgFileFocusDuo-column-ratio', String(n));
-                    } } }),
-                React.createElement("div", { ref: fileStart, hidden: !showFiles, className: `duo-file-column${wide ? ' duo-pane' : ''}`, "aria-label": "Folder files" },
-                    React.createElement(FileComponent, { plugin: plugin, wide: wide, adaptive: true, actionsRef: fileActions }))),
-            focusMode && !shortcuts && React.createElement(FocusPanel, { plugin: plugin, mode: view$1, adaptive: true })),
-        launch && reactDomExports.createPortal(React.createElement(FocusPanel, { plugin: plugin, mode: launch.mode, launcher: {
-                onSwitch: mode => setLaunch({ modal: launch.modal, mode }),
-                onClose: () => launch.modal.close(),
-                onRevealFolder: () => setShortcuts(false),
-            } }), launch.modal.contentEl));
+    const layoutStyle = { '--duo-folder-ratio': `${ratio * 100}%` };
+    if (foldProfile !== undefined && foldDividerUsed) {
+        layoutStyle['--fjgduo-fold-user-column'] = `${ratio * 100}%`;
+        layoutStyle['--fjgduo-fold-user-file-limit'] = '100%';
+    }
+    return React.createElement(FoldScrollAnchor, { host: host, profile: foldProfile, remeasure: foldRemeasure, wide: wide, navigation: [path, view$1, jump, shortcuts, showFiles], hasNavigationPending: () => pendingJump.current && Boolean(files.length) && !focusMode },
+        React.createElement("div", { ref: host, className: `duo-navigator ${obsidian.Platform.isPhone && plugin.settings.compactTextPhone ? 'duo-compact-text' : ''} ${wide ? 'duo-wide' : 'duo-compact'} ${plugin.settings.fixedHeaderInFileList ? '' : 'duo-unpinned'} ${showFiles ? '' : 'duo-root-folders-only'}`, "data-layout": wide ? 'columns' : 'drilldown', style: layoutStyle },
+            React.createElement("div", { ref: pane, className: "duo-pane duo-main-scroll" },
+                toolbar,
+                obsidian.Platform.isMobile && React.createElement("div", { className: "duo-panel-switch", role: "group", "aria-label": "Left panel contents" },
+                    React.createElement("button", { "data-ignore-swipe": "true", "aria-pressed": shortcuts, onClick: () => choosePanel(true) }, "Shortcuts"),
+                    React.createElement("button", { "data-ignore-swipe": "true", "aria-pressed": !shortcuts, onClick: () => choosePanel(false) }, "Folders")),
+                shortcuts && React.createElement(ShortcutPanel, { context: path || plugin.app.vault.getName(), sections: actionSections, run: runShortcut }),
+                React.createElement("div", { className: "duo-columns", hidden: focusMode || shortcuts },
+                    React.createElement("div", { className: "duo-folder-column", "aria-label": "Folders" },
+                        React.createElement(MainFolder, { plugin: plugin, adaptive: true, actionsRef: folderActions })),
+                    wide && showFiles && React.createElement("div", { className: "duo-divider", role: "separator", "aria-label": "Resize folder column", "aria-orientation": "vertical", "aria-valuemin": 25, "aria-valuemax": 55, "aria-valuenow": Math.round(ratio * 100), tabIndex: 0, onPointerDown: e => { e.currentTarget.setPointerCapture(e.pointerId); resize(e); }, onPointerMove: e => { if (e.currentTarget.hasPointerCapture(e.pointerId))
+                            resize(e); }, onKeyDown: e => { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                            e.preventDefault();
+                            if (foldProfile !== undefined)
+                                setFoldDividerUsed(true);
+                            const n = Math.max(.25, Math.min(.55, ratio + (e.key === 'ArrowLeft' ? -0.025 : .025)));
+                            setRatio(n);
+                            localStorage.setItem('fjgFileFocusDuo-column-ratio', String(n));
+                        } } }),
+                    React.createElement("div", { ref: fileStart, hidden: !showFiles, className: `duo-file-column${wide ? ' duo-pane' : ''}`, "aria-label": "Folder files" },
+                        React.createElement(FileComponent, { plugin: plugin, wide: wide, adaptive: true, actionsRef: fileActions }))),
+                focusMode && !shortcuts && React.createElement(FocusPanel, { plugin: plugin, mode: view$1, adaptive: true })),
+            launch && reactDomExports.createPortal(React.createElement(FocusPanel, { plugin: plugin, mode: launch.mode, launcher: {
+                    onSwitch: mode => setLaunch({ modal: launch.modal, mode }),
+                    onClose: () => launch.modal.close(),
+                    onRevealFolder: () => setShortcuts(false),
+                } }), launch.modal.contentEl)));
 }
 
 const SingleViewVertical = (props) => {
@@ -5809,7 +6027,7 @@ function MainTreeComponent(props) {
         }
     }
     if (obsidian.Platform.isMobile || !plugin.settings.duoDesktopLegacyLayout)
-        return React.createElement(AdaptiveNavigator, { plugin: plugin, fileTreeView: props.fileTreeView });
+        return React.createElement(AdaptiveNavigator, { plugin: plugin, fileTreeView: props.fileTreeView, foldProfile: props.foldProfile, foldRemeasure: props.foldRemeasure });
     return (React.createElement(React.Fragment, null, view$1 === 'folder' ? (React.createElement(MainFolder, { plugin: plugin })) : view$1 === 'recent' || view$1 === 'bookmarks' ? (plugin.settings.evernoteView === 'Horizontal' ? (React.createElement(SingleViewHorizontal, { plugin: plugin, focusMode: view$1 })) : plugin.settings.evernoteView === 'Vertical' ? (React.createElement(SingleViewVertical, { plugin: plugin, focusMode: view$1 })) : (React.createElement(FocusPanel, { plugin: plugin, mode: view$1 }))) : plugin.settings.evernoteView === 'Horizontal' ? (React.createElement(SingleViewHorizontal, { plugin: plugin })) : plugin.settings.evernoteView === 'Vertical' ? (React.createElement(SingleViewVertical, { plugin: plugin })) : (React.createElement(FileComponent, { plugin: plugin }))));
 }
 
@@ -5909,6 +6127,8 @@ class FileTreeView extends obsidian.ItemView {
             this.root.unmount();
             this.root = undefined;
             this.plugin.unregisterMountedFileTreeView(this);
+            this.foldProfile = undefined;
+            this.foldRemeasure = undefined;
         }
         this.contentEl.empty();
     }
@@ -6000,9 +6220,23 @@ class FileTreeView extends obsidian.ItemView {
         this.destroy();
         this.root = createRoot(this.contentEl);
         this.plugin.registerMountedFileTreeView(this);
-        this.root.render(React.createElement("div", { className: "fjgduo-tree-plugin-view" },
+        this.renderTree();
+    }
+    setFoldProfile(profile, remeasure) {
+        const next = profile !== null && profile !== void 0 ? profile : undefined;
+        if (this.foldProfile === next && this.foldRemeasure === remeasure)
+            return;
+        if (this.root && this.foldProfile !== next)
+            prepareFoldScrollHandoff(this.contentEl);
+        this.foldProfile = next;
+        this.foldRemeasure = profile === null ? undefined : remeasure;
+        this.renderTree();
+    }
+    renderTree() {
+        var _a;
+        (_a = this.root) === null || _a === void 0 ? void 0 : _a.render(React.createElement("div", { className: "fjgduo-tree-plugin-view" },
             React.createElement(Recoil_index_5, null,
-                React.createElement(MainTreeComponent, { fileTreeView: this, plugin: this.plugin }))));
+                React.createElement(MainTreeComponent, Object.assign({ fileTreeView: this, plugin: this.plugin }, (this.foldProfile ? { foldProfile: this.foldProfile, foldRemeasure: this.foldRemeasure } : {}))))));
     }
 }
 
@@ -6057,6 +6291,14 @@ const DEFAULT_SETTINGS = {
     folderCountOption: 'notes',
     duoColumnWidth: 560,
     duoDesktopLegacyLayout: false,
+    foldAwareLayout: false,
+    foldDebugOverlay: false,
+    foldHysteresis: 24,
+    foldSettleMs: 120,
+    foldCompactTypography: false,
+    foldCompactSidebarWidth: null,
+    foldExpandedSidebarWidth: null,
+    foldExpandedColumnWidth: null,
     evernoteView: 'Vertical',
     filePreviewOnHover: false,
     iconBeforeFileName: true,
@@ -6074,6 +6316,23 @@ const DEFAULT_SETTINGS = {
     focusShowPaths: true,
     focusOpenInNewTab: true,
 };
+function foldRange(value, min, max) {
+    return typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max ? value : null;
+}
+/** Fold-only normalization. Do not mutate legacy settings or activate fold options while disabled. */
+function validateFoldTuning(settings) {
+    var _a, _b, _c;
+    return {
+        columnWidth: (_a = foldRange(settings.duoColumnWidth, 440, 1000)) !== null && _a !== void 0 ? _a : DEFAULT_SETTINGS.duoColumnWidth,
+        hysteresis: (_b = foldRange(settings.foldHysteresis, 0, 80)) !== null && _b !== void 0 ? _b : DEFAULT_SETTINGS.foldHysteresis,
+        settle: (_c = foldRange(settings.foldSettleMs, 0, 500)) !== null && _c !== void 0 ? _c : DEFAULT_SETTINGS.foldSettleMs,
+        debug: settings.foldDebugOverlay === true,
+        compactTypography: settings.foldCompactTypography === true,
+        compactSidebarWidth: foldRange(settings.foldCompactSidebarWidth, 160, 800),
+        expandedSidebarWidth: foldRange(settings.foldExpandedSidebarWidth, 160, 800),
+        expandedColumnWidth: foldRange(settings.foldExpandedColumnWidth, 160, 1000),
+    };
+}
 class FileTreeAlternativePluginSettingsTab extends obsidian.PluginSettingTab {
     constructor(app, plugin) {
         super(app, plugin);
@@ -6090,9 +6349,61 @@ class FileTreeAlternativePluginSettingsTab extends obsidian.PluginSettingTab {
         new obsidian.Setting(containerEl).setName('Duo two-column minimum width').setDesc('Panel width in CSS pixels. 560 separates the four measured Duo layouts; tune after device testing.').addText(text => text.setValue(String(this.plugin.settings.duoColumnWidth)).onChange((value) => __awaiter(this, void 0, void 0, function* () { const width = Number(value); if (Number.isFinite(width) && width >= 440 && width <= 1000) {
             this.plugin.settings.duoColumnWidth = width;
             yield this.plugin.saveSettings();
-            this.refreshView();
+            if (!obsidian.Platform.isMobile || this.plugin.settings.foldAwareLayout !== true)
+                this.refreshView();
         } })));
         new obsidian.Setting(containerEl).setName('Use legacy desktop layout').setDesc('Desktop only. Restore the Evernote layout setting below. Mobile always uses the adaptive navigator.').addToggle(toggle => toggle.setValue(this.plugin.settings.duoDesktopLegacyLayout).onChange((value) => __awaiter(this, void 0, void 0, function* () { this.plugin.settings.duoDesktopLegacyLayout = value; yield this.plugin.saveSettings(); this.refreshView(); })));
+        new obsidian.Setting(containerEl).setName('Fold-aware layout')
+            .setDesc('On mobile, fit Duo to the available panel width. Does not detect the hinge or change Obsidian drawers.')
+            .addToggle(toggle => toggle.setValue(this.plugin.settings.foldAwareLayout === true).onChange((value) => __awaiter(this, void 0, void 0, function* () {
+            this.plugin.settings.foldAwareLayout = value;
+            const saved = this.plugin.saveSettings();
+            this.display();
+            yield saved;
+        })));
+        if (this.plugin.settings.foldAwareLayout === true) {
+            const tuning = validateFoldTuning(this.plugin.settings);
+            new obsidian.Setting(containerEl).setName('Fold debug overlay')
+                .setDesc('Show an on-device geometry overlay on eligible Duo panels.')
+                .addToggle(toggle => toggle.setValue(tuning.debug).onChange((value) => __awaiter(this, void 0, void 0, function* () {
+                this.plugin.settings.foldDebugOverlay = value;
+                yield this.plugin.saveSettings();
+            })));
+            new obsidian.Setting(containerEl).setName('Compact fold typography')
+                .setDesc('Use slightly smaller labels in the compact profile. Style Settings overrides still apply.')
+                .addToggle(toggle => toggle.setValue(tuning.compactTypography).onChange((value) => __awaiter(this, void 0, void 0, function* () {
+                this.plugin.settings.foldCompactTypography = value;
+                yield this.plugin.saveSettings();
+            })));
+            const addFoldNumber = (label, key, current, min, max, unit, optional = false) => {
+                new obsidian.Setting(containerEl).setName(label)
+                    .setDesc(`${min}–${max} ${unit}.${optional ? ' Leave blank to inherit.' : ''}`)
+                    .addText(text => {
+                    text.inputEl.inputMode = 'decimal';
+                    text.setValue(current === null ? '' : String(current)).onChange((value) => __awaiter(this, void 0, void 0, function* () {
+                        const normalized = value.trim();
+                        const parsed = normalized ? foldRange(Number(normalized), min, max) : null;
+                        const valid = parsed !== null || (optional && !normalized);
+                        text.inputEl.setAttribute('aria-invalid', valid ? 'false' : 'true');
+                        if (!valid)
+                            return;
+                        if (key === 'foldHysteresis' || key === 'foldSettleMs') {
+                            if (parsed === null)
+                                return;
+                            this.plugin.settings[key] = parsed;
+                        }
+                        else
+                            this.plugin.settings[key] = parsed;
+                        yield this.plugin.saveSettings();
+                    }));
+                });
+            };
+            addFoldNumber('Fold hysteresis', 'foldHysteresis', tuning.hysteresis, 0, 80, 'CSS px');
+            addFoldNumber('Fold settle delay', 'foldSettleMs', tuning.settle, 0, 500, 'ms');
+            addFoldNumber('Compact sidebar width', 'foldCompactSidebarWidth', tuning.compactSidebarWidth, 160, 800, 'CSS px', true);
+            addFoldNumber('Expanded sidebar width', 'foldExpandedSidebarWidth', tuning.expandedSidebarWidth, 160, 800, 'CSS px', true);
+            addFoldNumber('Expanded second column width', 'foldExpandedColumnWidth', tuning.expandedColumnWidth, 160, 1000, 'CSS px', true);
+        }
         new obsidian.Setting(containerEl).setName('Vault voice API key').setDesc('Optional. Stored in plain text in this plugin’s data.json. Leave empty to choose the saved Objective Manager key for each conversation, without copying it into Duo.')
             .addText((text) => {
             text.inputEl.type = 'password';
@@ -7613,6 +7924,341 @@ class VaultVoiceModal extends obsidian.Modal {
     }
 }
 
+function foldNumber(value, fallback, min, max) {
+    return typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max ? value : fallback;
+}
+function normalize(settings) {
+    return {
+        columnWidth: foldNumber(settings.columnWidth, 560, 440, 1000),
+        hysteresis: foldNumber(settings.hysteresis, 24, 0, 80),
+        settle: foldNumber(settings.settle, 120, 0, 500),
+        debug: settings.debug === true,
+        compactTypography: settings.compactTypography === true,
+        compactSidebarWidth: foldNumber(settings.compactSidebarWidth, 0, 120, 1000),
+        expandedSidebarWidth: foldNumber(settings.expandedSidebarWidth, 0, 120, 1000),
+        expandedColumnWidth: foldNumber(settings.expandedColumnWidth, 0, 120, 1000),
+    };
+}
+/** Width describes the available panel, not the physical hinge posture. */
+function resolveFoldProfile(width, threshold, hysteresis, previous = 'unknown') {
+    if (!Number.isFinite(width) || width <= 0)
+        return previous;
+    if (width >= threshold)
+        return 'expanded';
+    if (width <= threshold - hysteresis)
+        return 'compact';
+    return previous;
+}
+const profiles = ['unknown', 'compact', 'expanded'];
+const poses = ['unlabeled', 'folded', 'unfolded', 'drawer', 'keyboard', 'rotation', 'split', 'resume'];
+const profileClass = (profile) => 'fjgduo-fold-' + profile;
+const traceLimit = 80;
+const safeBodyClasses = ['is-mobile', 'is-tablet', 'is-phone', 'is-ios', 'is-android', 'theme-dark', 'theme-light'];
+const mediaQueries = ['(orientation: portrait)', '(pointer: coarse)', '(hover: none)', '(prefers-reduced-motion: reduce)'];
+const numberChanged = (first, second) => Math.abs(first - second) >= .5;
+const geometry = (r) => ({ x: r.x, y: r.y, width: r.width, height: r.height });
+/** Owned and constructed only while fold-aware layout is enabled. */
+class FoldLayoutController {
+    constructor(settings) {
+        this.disposed = false;
+        this.handles = new Map();
+        this.history = [];
+        this.nextView = 0;
+        this.pose = 'unlabeled';
+        this.settings = normalize(settings);
+    }
+    attach(root, onProfile) {
+        if (this.disposed || this.handles.has(root))
+            return () => { };
+        const doc = root.ownerDocument;
+        const win = doc.defaultView;
+        if (!win)
+            return () => { };
+        const visual = win.visualViewport;
+        const listeners = [];
+        let frame, timer, overlay;
+        let alive = true, initialized = false;
+        let sample;
+        let requested = new Set();
+        let pending = new Set();
+        const listen = (target, name, fn) => {
+            target.addEventListener(name, fn);
+            listeners.push(() => target.removeEventListener(name, fn));
+        };
+        const clearTimer = () => {
+            if (timer === undefined)
+                return;
+            win.clearTimeout(timer);
+            timer = undefined;
+        };
+        const read = () => {
+            if (!root.isConnected || doc.visibilityState === 'hidden' || root.getClientRects().length === 0)
+                return undefined;
+            const style = win.getComputedStyle(root);
+            if (style.visibility === 'hidden' || style.visibility === 'collapse')
+                return undefined;
+            const { x, y, width, height } = root.getBoundingClientRect();
+            if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0)
+                return undefined;
+            if (x + width <= 0 || y + height <= 0 || x >= win.innerWidth || y >= win.innerHeight)
+                return undefined;
+            return { width, height };
+        };
+        const removeOverlay = () => {
+            overlay === null || overlay === void 0 ? void 0 : overlay.remove();
+            overlay = undefined;
+        };
+        const paint = () => {
+            if (!initialized)
+                return;
+            for (const profile of profiles)
+                root.classList.toggle(profileClass(profile), view.profile === profile);
+            root.classList.toggle('fjgduo-fold-tight', Boolean(this.settings.compactTypography && view.profile === 'compact'));
+            const sidebar = view.profile === 'compact' ? this.settings.compactSidebarWidth : view.profile === 'expanded' ? this.settings.expandedSidebarWidth : 0;
+            const column = view.profile === 'expanded' ? this.settings.expandedColumnWidth : 0;
+            if (sidebar)
+                root.style.setProperty('--fjgduo-fold-sidebar-width', sidebar + 'px');
+            else
+                root.style.removeProperty('--fjgduo-fold-sidebar-width');
+            if (column)
+                root.style.setProperty('--fjgduo-fold-column-width', column + 'px');
+            else
+                root.style.removeProperty('--fjgduo-fold-column-width');
+            if (!this.settings.debug || !sample) {
+                removeOverlay();
+                return;
+            }
+            if (!overlay || overlay.parentNode !== root) {
+                overlay = doc.createElement('output');
+                overlay.className = 'fjgduo-fold-overlay';
+                root.appendChild(overlay);
+            }
+            overlay.textContent = `Fold: ${view.profile} | panel ${sample.width.toFixed(1)} × ${sample.height.toFixed(1)} | ${this.pose}`;
+        };
+        const resolve = (measurement) => resolveFoldProfile(measurement.width, this.settings.columnWidth, this.settings.hysteresis, view.profile);
+        const significant = (first, second) => numberChanged(first.width, second.width) || resolve(first) !== resolve(second);
+        const commit = (causes) => {
+            if (!alive || !sample)
+                return;
+            const from = view.profile;
+            const next = resolve(sample);
+            view.profile = next;
+            if (!initialized || next !== from) {
+                initialized = true;
+                onProfile(next);
+                if (!alive)
+                    return;
+            }
+            paint();
+            // Do not read a full diagnostic snapshot for every intermediate resize sample.
+            this.record(view, from, causes);
+        };
+        const settle = () => {
+            clearTimer();
+            if (!alive)
+                return;
+            if (!this.settings.settle) {
+                const causes = Array.from(pending);
+                pending.clear();
+                commit(causes);
+                return;
+            }
+            timer = win.setTimeout(() => {
+                timer = undefined;
+                if (!alive)
+                    return;
+                const newest = read();
+                if (!newest) {
+                    sample = undefined;
+                    pending.clear();
+                    removeOverlay();
+                    return;
+                }
+                if (sample && significant(newest, sample)) {
+                    sample = newest;
+                    pending.add('root-resize');
+                    settle();
+                    return;
+                }
+                sample = newest;
+                const causes = Array.from(pending);
+                pending.clear();
+                commit(causes);
+            }, this.settings.settle);
+        };
+        const measure = (causes) => {
+            if (!alive)
+                return;
+            const previous = sample;
+            sample = read();
+            if (!sample) {
+                clearTimer();
+                pending.clear();
+                removeOverlay();
+                return;
+            }
+            if (!initialized) {
+                commit(causes);
+                return;
+            }
+            if (!previous || significant(sample, previous) || causes.includes('settings')) {
+                causes.forEach(cause => pending.add(cause));
+                settle();
+            }
+            else if (pending.size) {
+                causes.forEach(cause => pending.add(cause));
+            }
+            else if (causes.some(cause => cause === 'visible-resume' || cause === 'pose' || cause === 'inspect')) {
+                this.record(view, view.profile, causes);
+            }
+            if (this.settings.debug)
+                paint();
+        };
+        const observer = typeof win.ResizeObserver === 'function'
+            ? new win.ResizeObserver(() => view.request('root-resize')) : undefined;
+        const view = {
+            id: ++this.nextView,
+            root,
+            profile: 'unknown',
+            request: (cause) => {
+                if (!alive)
+                    return;
+                requested.add(cause);
+                if (frame !== undefined)
+                    return;
+                frame = win.requestAnimationFrame(() => {
+                    frame = undefined;
+                    if (!alive)
+                        return;
+                    const causes = Array.from(requested);
+                    requested.clear();
+                    measure(causes);
+                });
+            },
+            reconcile: () => {
+                if (!this.settings.debug)
+                    removeOverlay();
+                if (initialized)
+                    paint();
+                view.request('settings');
+            },
+            dispose: () => {
+                if (!alive)
+                    return;
+                alive = false;
+                if (this.handles.get(root) === view)
+                    this.handles.delete(root);
+                clearTimer();
+                if (frame !== undefined)
+                    win.cancelAnimationFrame(frame);
+                requested.clear();
+                pending.clear();
+                observer === null || observer === void 0 ? void 0 : observer.disconnect();
+                listeners.forEach(stop => stop());
+                if (initialized)
+                    onProfile(null);
+                removeOverlay();
+                for (const profile of profiles)
+                    root.classList.remove(profileClass(profile));
+                root.classList.remove('fjgduo-fold-tight');
+                root.style.removeProperty('--fjgduo-fold-sidebar-width');
+                root.style.removeProperty('--fjgduo-fold-column-width');
+            },
+        };
+        this.handles.set(root, view);
+        observer === null || observer === void 0 ? void 0 : observer.observe(root, { box: 'border-box' });
+        listen(win, 'resize', () => view.request('window-resize'));
+        listen(win, 'pageshow', () => view.request('visible-resume'));
+        if (visual) {
+            listen(visual, 'resize', () => view.request('viewport-resize'));
+            listen(visual, 'scroll', () => view.request('viewport-scroll'));
+        }
+        listen(doc, 'visibilitychange', () => {
+            if (doc.visibilityState === 'hidden') {
+                clearTimer();
+                if (frame !== undefined)
+                    win.cancelAnimationFrame(frame);
+                frame = undefined;
+                requested.clear();
+                pending.clear();
+                sample = undefined;
+                removeOverlay();
+            }
+            else
+                view.request('visible-resume');
+        });
+        measure(['attach']);
+        return view.dispose;
+    }
+    update(settings) {
+        if (this.disposed)
+            return;
+        const old = this.settings;
+        this.settings = normalize(settings);
+        if (Object.keys(this.settings).every(key => this.settings[key] === old[key]))
+            return;
+        this.handles.forEach(view => view.reconcile());
+    }
+    signal(cause = 'layout-change') {
+        this.handles.forEach(view => view.request(cause));
+    }
+    setPose(pose) {
+        if (this.disposed || !poses.includes(pose))
+            return;
+        this.pose = pose;
+        this.signal('pose');
+    }
+    traceText() {
+        if (this.disposed)
+            return '[]';
+        this.handles.forEach(view => this.record(view, view.profile, ['inspect']));
+        return JSON.stringify(this.history, null, 2);
+    }
+    dispose() {
+        if (this.disposed)
+            return;
+        this.disposed = true;
+        this.handles.forEach(view => view.dispose());
+        this.handles.clear();
+        this.history = [];
+    }
+    record(view, from, causes) {
+        var _a;
+        const root = view.root;
+        const doc = root.ownerDocument;
+        const win = doc.defaultView;
+        if (!win || !root.isConnected || doc.visibilityState === 'hidden' || !root.getClientRects().length)
+            return;
+        const viewport = win.visualViewport;
+        const vv = viewport ? { width: viewport.width, height: viewport.height, scale: viewport.scale,
+            offsetLeft: viewport.offsetLeft, offsetTop: viewport.offsetTop } : undefined;
+        const orientation = (_a = win.screen) === null || _a === void 0 ? void 0 : _a.orientation;
+        const probe = doc.createElement('span');
+        probe.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;inset:0 auto auto 0;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)';
+        root.appendChild(probe);
+        const inset = win.getComputedStyle(probe);
+        const insets = [inset.paddingTop, inset.paddingRight, inset.paddingBottom, inset.paddingLeft].map(value => parseFloat(value));
+        probe.remove();
+        const scrollers = Array.from(root.querySelectorAll('.duo-main-scroll, .duo-pane, .oz-nav-file-tree')).slice(0, 8)
+            .map(el => (Object.assign(Object.assign({}, geometry(el.getBoundingClientRect())), { scrollTop: el.scrollTop, scrollHeight: el.scrollHeight, clientHeight: el.clientHeight })));
+        const row = {
+            at: new Date().toISOString(), view: view.id, causes, from, to: view.profile, pose: this.pose,
+            window: { width: win.innerWidth, height: win.innerHeight, dpr: win.devicePixelRatio },
+            viewport: vv,
+            orientation: orientation && { type: orientation.type, angle: orientation.angle },
+            media: mediaQueries.map(query => { var _a, _b; return ({ query, matches: (_b = (_a = win.matchMedia) === null || _a === void 0 ? void 0 : _a.call(win, query).matches) !== null && _b !== void 0 ? _b : false }); }),
+            bodyClasses: safeBodyClasses.filter(name => { var _a; return (_a = doc.body) === null || _a === void 0 ? void 0 : _a.classList.contains(name); }),
+            safeArea: insets.every(Number.isFinite) ? insets : null,
+            panel: geometry(root.getBoundingClientRect()), scrollers,
+        };
+        if (this.history.length >= traceLimit)
+            this.history.shift();
+        this.history.push(row);
+    }
+}
+
+const FOLD_COMMAND_IDS = ['fold-trace-inspect', 'fold-trace-copy', 'fold-trace-save'];
+const FOLD_POSES = ['unlabeled', 'folded', 'unfolded', 'drawer', 'keyboard', 'rotation', 'split', 'resume'];
 const FileFocusIcon = `
     <g fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 29c0-7 5-12 12-12h17l10 10h29c7 0 12 5 12 12v17H12Z" />
@@ -7671,9 +8317,16 @@ class FileTreeAlternativePlugin extends obsidian.Plugin {
         this.shouldBuildFolderTreeRecursively = () => this.getMobilePerformancePolicy().buildFolderTreeRecursively;
         this.registerMountedFileTreeView = (view) => {
             this.mountedFileTreeViews.add(view);
+            if (this.foldController)
+                this.attachFoldView(view);
         };
         this.unregisterMountedFileTreeView = (view) => {
+            var _a;
             this.mountedFileTreeViews.delete(view);
+            if (this.foldViews) {
+                (_a = this.foldViews.get(view)) === null || _a === void 0 ? void 0 : _a();
+                this.foldViews.delete(view);
+            }
             if (this.isMobilePerformanceModeEnabled() && this.mountedFileTreeViews.size === 0) {
                 this.mobileVaultChangeQueue.clear();
             }
@@ -7967,6 +8620,8 @@ class FileTreeAlternativePlugin extends obsidian.Plugin {
             // Load Settings
             this.addSettingTab(new FileTreeAlternativePluginSettingsTab(this.app, this));
             yield this.loadSettings();
+            if (this.settings.foldAwareLayout === true)
+                this.syncFoldLayout();
             yield this.importOriginalVisibilitySettings();
             this.lastActiveFile = this.app.workspace.getActiveFile();
             this.addCommand({ id: 'talk-to-vault', name: 'Talk to Your Vault', callback: () => this.openVaultVoice() });
@@ -8113,6 +8768,8 @@ class FileTreeAlternativePlugin extends obsidian.Plugin {
     }
     onunload() {
         var _a;
+        if (this.foldController)
+            this.stopFoldLayout();
         (_a = this.vaultVoiceModal) === null || _a === void 0 ? void 0 : _a.shutdown();
         console.log('Unloading FJG File Focus Duo Plugin');
         this.mobileVaultChangeQueue.clear();
@@ -8161,7 +8818,134 @@ class FileTreeAlternativePlugin extends obsidian.Plugin {
     }
     saveSettings() {
         return __awaiter(this, void 0, void 0, function* () {
+            if (this.settings.foldAwareLayout === true || this.foldController)
+                this.syncFoldLayout();
             yield this.saveData(this.settings);
+        });
+    }
+    syncFoldLayout() {
+        if (this.settings.foldAwareLayout !== true || !obsidian.Platform.isMobile) {
+            if (this.foldController)
+                this.stopFoldLayout();
+            return;
+        }
+        const tuning = validateFoldTuning(this.settings);
+        if (this.foldController) {
+            this.foldController.update(tuning);
+            return;
+        }
+        const controller = new FoldLayoutController(tuning);
+        this.foldController = controller;
+        this.foldViews = new Map();
+        this.foldLayoutEvent = this.app.workspace.on('layout-change', () => controller.signal('layout-change'));
+        for (const view of this.mountedFileTreeViews)
+            this.attachFoldView(view);
+        this.registerFoldTraceCommands(controller);
+    }
+    attachFoldView(view) {
+        const controller = this.foldController;
+        const views = this.foldViews;
+        if (!controller || !views || views.has(view) || view.getViewType() !== this.VIEW_TYPE || !view.isReactTreeMounted())
+            return;
+        const remeasure = () => {
+            if (this.foldController === controller && views.has(view))
+                controller.signal('layout-commit');
+        };
+        views.set(view, controller.attach(view.contentEl, profile => {
+            if (profile === null || this.foldController === controller)
+                view.setFoldProfile(profile, profile === null ? undefined : remeasure);
+        }));
+    }
+    stopFoldLayout() {
+        var _a, _b, _c;
+        const controller = this.foldController;
+        this.foldController = undefined;
+        if (this.foldLayoutEvent)
+            this.app.workspace.offref(this.foldLayoutEvent);
+        this.foldLayoutEvent = undefined;
+        (_a = this.unregisterFoldCommands) === null || _a === void 0 ? void 0 : _a.call(this);
+        this.unregisterFoldCommands = undefined;
+        (_b = this.foldTraceModal) === null || _b === void 0 ? void 0 : _b.close();
+        this.foldTraceModal = undefined;
+        controller === null || controller === void 0 ? void 0 : controller.dispose();
+        (_c = this.foldViews) === null || _c === void 0 ? void 0 : _c.clear();
+        this.foldViews = undefined;
+    }
+    registerFoldTraceCommands(controller) {
+        // The public Plugin.removeCommand arrived after the plugin's minimum supported Obsidian version.
+        const registry = this.app.commands;
+        const remove = typeof this.removeCommand === 'function'
+            ? (id) => this.removeCommand(id)
+            : typeof (registry === null || registry === void 0 ? void 0 : registry.removeCommand) === 'function'
+                ? (id) => registry.removeCommand(`${this.manifest.id}:${id}`)
+                : undefined;
+        if (!remove)
+            return; // Never create commands we cannot clean up.
+        this.unregisterFoldCommands = () => FOLD_COMMAND_IDS.forEach(remove);
+        this.addCommand({ id: FOLD_COMMAND_IDS[0], name: 'Inspect local fold trace', callback: () => {
+                var _a;
+                if (this.foldController !== controller)
+                    return;
+                (_a = this.foldTraceModal) === null || _a === void 0 ? void 0 : _a.close();
+                const modal = new obsidian.Modal(this.app);
+                modal.setTitle('Duo fold trace');
+                let pose = 'unlabeled';
+                new obsidian.Setting(modal.contentEl).setName('Record a manual pose label').setDesc('A label you choose, not a detected hinge state.')
+                    .addDropdown(dropdown => {
+                    for (const label of FOLD_POSES)
+                        dropdown.addOption(label, label);
+                    dropdown.setValue(pose).onChange(value => { pose = value; });
+                }).addButton(button => button.setButtonText('Record pose').onClick(() => {
+                    if (this.foldController !== controller)
+                        return;
+                    controller.setPose(pose);
+                    details.setText(controller.traceText());
+                }));
+                const details = modal.contentEl.createEl('pre', { text: controller.traceText() });
+                this.foldTraceModal = modal;
+                modal.open();
+            } });
+        this.addCommand({ id: FOLD_COMMAND_IDS[1], name: 'Copy local fold trace', callback: () => __awaiter(this, void 0, void 0, function* () {
+                if (this.foldController !== controller)
+                    return;
+                try {
+                    yield navigator.clipboard.writeText(controller.traceText());
+                    new obsidian.Notice('Duo fold trace copied.');
+                }
+                catch (_a) {
+                    new obsidian.Notice('Could not copy the Duo fold trace. Try the local save command.');
+                }
+            }) });
+        this.addCommand({ id: FOLD_COMMAND_IDS[2], name: 'Save fold trace in this vault', callback: () => {
+                if (this.foldController === controller)
+                    void this.saveFoldTrace(controller);
+            } });
+    }
+    saveFoldTrace(controller) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const trace = controller.traceText();
+            for (let attempt = 0; attempt < 8; attempt++) {
+                if (this.foldController !== controller)
+                    return;
+                const path = `Duo fold trace ${stamp}${attempt ? `-${attempt}` : ''}.json`;
+                try {
+                    if (yield this.app.vault.adapter.exists(path))
+                        continue;
+                    if (this.foldController !== controller)
+                        return;
+                    yield this.app.vault.create(path, trace);
+                    new obsidian.Notice('Duo fold trace saved in this vault.');
+                    return;
+                }
+                catch (_a) {
+                    if (yield this.app.vault.adapter.exists(path).catch(() => false))
+                        continue;
+                    break;
+                }
+            }
+            if (this.foldController === controller)
+                new obsidian.Notice('Could not save the Duo fold trace. No existing note was changed.');
         });
     }
     setFollowActiveFile(value) {

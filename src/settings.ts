@@ -1,5 +1,5 @@
 import FileTreeAlternativePlugin from './main';
-import { PluginSettingTab, Setting, App, Notice } from 'obsidian';
+import { PluginSettingTab, Setting, App, Notice, Platform } from 'obsidian';
 import { LocalStorageHandler } from '@ozntel/local-storage-handler';
 import { eventTypes } from 'utils/types';
 import { DEFAULT_MOBILE_PERFORMANCE_MODE } from './mobilePerformance';
@@ -37,6 +37,14 @@ export interface FileTreeAlternativePluginSettings {
     folderCountOption: string;
     duoColumnWidth: number;
     duoDesktopLegacyLayout: boolean;
+    foldAwareLayout: boolean;
+    foldDebugOverlay: boolean;
+    foldHysteresis: number;
+    foldSettleMs: number;
+    foldCompactTypography: boolean;
+    foldCompactSidebarWidth: number | null;
+    foldExpandedSidebarWidth: number | null;
+    foldExpandedColumnWidth: number | null;
     evernoteView: EvernoteViewOption;
     filePreviewOnHover: boolean;
     iconBeforeFileName: boolean;
@@ -80,6 +88,14 @@ export const DEFAULT_SETTINGS: FileTreeAlternativePluginSettings = {
     folderCountOption: 'notes',
     duoColumnWidth: 560,
     duoDesktopLegacyLayout: false,
+    foldAwareLayout: false,
+    foldDebugOverlay: false,
+    foldHysteresis: 24,
+    foldSettleMs: 120,
+    foldCompactTypography: false,
+    foldCompactSidebarWidth: null,
+    foldExpandedSidebarWidth: null,
+    foldExpandedColumnWidth: null,
     evernoteView: 'Vertical',
     filePreviewOnHover: false,
     iconBeforeFileName: true,
@@ -98,6 +114,24 @@ export const DEFAULT_SETTINGS: FileTreeAlternativePluginSettings = {
     focusOpenInNewTab: true,
 };
 
+function foldRange(value: unknown, min: number, max: number): number | null {
+    return typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max ? value : null;
+}
+
+/** Fold-only normalization. Do not mutate legacy settings or activate fold options while disabled. */
+export function validateFoldTuning(settings: FileTreeAlternativePluginSettings) {
+    return {
+        columnWidth: foldRange(settings.duoColumnWidth, 440, 1000) ?? DEFAULT_SETTINGS.duoColumnWidth,
+        hysteresis: foldRange(settings.foldHysteresis, 0, 80) ?? DEFAULT_SETTINGS.foldHysteresis,
+        settle: foldRange(settings.foldSettleMs, 0, 500) ?? DEFAULT_SETTINGS.foldSettleMs,
+        debug: settings.foldDebugOverlay === true,
+        compactTypography: settings.foldCompactTypography === true,
+        compactSidebarWidth: foldRange(settings.foldCompactSidebarWidth, 160, 800),
+        expandedSidebarWidth: foldRange(settings.foldExpandedSidebarWidth, 160, 800),
+        expandedColumnWidth: foldRange(settings.foldExpandedColumnWidth, 160, 1000),
+    };
+}
+
 export class FileTreeAlternativePluginSettingsTab extends PluginSettingTab {
     plugin: FileTreeAlternativePlugin;
 
@@ -115,8 +149,57 @@ export class FileTreeAlternativePluginSettingsTab extends PluginSettingTab {
         let { containerEl } = this;
         containerEl.empty();
         new Setting(containerEl).setName('Compact text (phone)').setDesc('Compact labels on phones; touch targets remain at least 44 pixels. Style Settings font overrides take precedence.').addToggle(toggle => toggle.setValue(this.plugin.settings.compactTextPhone).onChange(async value => { this.plugin.settings.compactTextPhone = value; await this.plugin.saveSettings(); this.refreshView(); }));
-        new Setting(containerEl).setName('Duo two-column minimum width').setDesc('Panel width in CSS pixels. 560 separates the four measured Duo layouts; tune after device testing.').addText(text => text.setValue(String(this.plugin.settings.duoColumnWidth)).onChange(async value => { const width = Number(value); if (Number.isFinite(width) && width >= 440 && width <= 1000) { this.plugin.settings.duoColumnWidth = width; await this.plugin.saveSettings(); this.refreshView(); } }));
+        new Setting(containerEl).setName('Duo two-column minimum width').setDesc('Panel width in CSS pixels. 560 separates the four measured Duo layouts; tune after device testing.').addText(text => text.setValue(String(this.plugin.settings.duoColumnWidth)).onChange(async value => { const width = Number(value); if (Number.isFinite(width) && width >= 440 && width <= 1000) { this.plugin.settings.duoColumnWidth = width; await this.plugin.saveSettings(); if (!Platform.isMobile || this.plugin.settings.foldAwareLayout !== true) this.refreshView(); } }));
         new Setting(containerEl).setName('Use legacy desktop layout').setDesc('Desktop only. Restore the Evernote layout setting below. Mobile always uses the adaptive navigator.').addToggle(toggle => toggle.setValue(this.plugin.settings.duoDesktopLegacyLayout).onChange(async value => { this.plugin.settings.duoDesktopLegacyLayout = value; await this.plugin.saveSettings(); this.refreshView(); }));
+
+        new Setting(containerEl).setName('Fold-aware layout')
+            .setDesc('On mobile, fit Duo to the available panel width. Does not detect the hinge or change Obsidian drawers.')
+            .addToggle(toggle => toggle.setValue(this.plugin.settings.foldAwareLayout === true).onChange(async value => {
+                this.plugin.settings.foldAwareLayout = value;
+                const saved = this.plugin.saveSettings();
+                this.display();
+                await saved;
+            }));
+        if (this.plugin.settings.foldAwareLayout === true) {
+            const tuning = validateFoldTuning(this.plugin.settings);
+            new Setting(containerEl).setName('Fold debug overlay')
+                .setDesc('Show an on-device geometry overlay on eligible Duo panels.')
+                .addToggle(toggle => toggle.setValue(tuning.debug).onChange(async value => {
+                    this.plugin.settings.foldDebugOverlay = value;
+                    await this.plugin.saveSettings();
+                }));
+            new Setting(containerEl).setName('Compact fold typography')
+                .setDesc('Use slightly smaller labels in the compact profile. Style Settings overrides still apply.')
+                .addToggle(toggle => toggle.setValue(tuning.compactTypography).onChange(async value => {
+                    this.plugin.settings.foldCompactTypography = value;
+                    await this.plugin.saveSettings();
+                }));
+            const addFoldNumber = (label: string, key: 'foldHysteresis' | 'foldSettleMs' | 'foldCompactSidebarWidth' | 'foldExpandedSidebarWidth' | 'foldExpandedColumnWidth',
+                current: number | null, min: number, max: number, unit: string, optional = false) => {
+                new Setting(containerEl).setName(label)
+                    .setDesc(`${min}–${max} ${unit}.${optional ? ' Leave blank to inherit.' : ''}`)
+                    .addText(text => {
+                        text.inputEl.inputMode = 'decimal';
+                        text.setValue(current === null ? '' : String(current)).onChange(async value => {
+                            const normalized = value.trim();
+                            const parsed = normalized ? foldRange(Number(normalized), min, max) : null;
+                            const valid = parsed !== null || (optional && !normalized);
+                            text.inputEl.setAttribute('aria-invalid', valid ? 'false' : 'true');
+                            if (!valid) return;
+                            if (key === 'foldHysteresis' || key === 'foldSettleMs') {
+                                if (parsed === null) return;
+                                this.plugin.settings[key] = parsed;
+                            } else this.plugin.settings[key] = parsed;
+                            await this.plugin.saveSettings();
+                        });
+                    });
+            };
+            addFoldNumber('Fold hysteresis', 'foldHysteresis', tuning.hysteresis, 0, 80, 'CSS px');
+            addFoldNumber('Fold settle delay', 'foldSettleMs', tuning.settle, 0, 500, 'ms');
+            addFoldNumber('Compact sidebar width', 'foldCompactSidebarWidth', tuning.compactSidebarWidth, 160, 800, 'CSS px', true);
+            addFoldNumber('Expanded sidebar width', 'foldExpandedSidebarWidth', tuning.expandedSidebarWidth, 160, 800, 'CSS px', true);
+            addFoldNumber('Expanded second column width', 'foldExpandedColumnWidth', tuning.expandedColumnWidth, 160, 1000, 'CSS px', true);
+        }
 
         new Setting(containerEl).setName('Vault voice API key').setDesc('Optional. Stored in plain text in this plugin’s data.json. Leave empty to choose the saved Objective Manager key for each conversation, without copying it into Duo.')
             .addText((text) => { text.inputEl.type = 'password'; text.setValue(this.plugin.settings.liveApiKey).onChange(async (value) => {

@@ -1161,3 +1161,47 @@ body.is-phone .duo-navigator.duo-compact .fjgduo-expand-chevron { width:18px; he
 .fjgduo-launcher input[type=search] { width:100%; min-height:44px; font-size:16px; }
 .fjgduo-launcher .fjgduo-focus-panel__body { max-height:55vh; overflow:auto; }
 .fjgduo-launcher .fjgduo-focus-panel__row { min-height:44px; touch-action:manipulation; }
+
+/* The host border box remains unchanged. Only opt-in Duo content is sized here. */
+:is(.fjgduo-fold-unknown,.fjgduo-fold-compact,.fjgduo-fold-expanded) .duo-navigator .duo-pane { overflow-anchor:none; }
+:is(.fjgduo-fold-unknown,.fjgduo-fold-compact) .duo-navigator .duo-main-scroll {
+    max-inline-size:min(100%,var(--fjgduo-fold-sidebar-width,100%));
+    margin-inline:auto;
+    inline-size:100%;
+}
+.fjgduo-fold-expanded .duo-navigator.duo-wide:not(.duo-root-folders-only) .duo-columns {
+    /* Clamp the columns immediately as a pane squeezes while the profile is settling. */
+    --fjgduo-min-column:min(112px,max(0px,calc((100% - 44px) / 2)));
+    --fjgduo-default-file-column:calc(100% - 44px - var(--duo-folder-ratio));
+    --fjgduo-folder-target:var(--fjgduo-fold-user-column,var(--fjgduo-fold-sidebar-width,calc(100% - 44px - var(--fjgduo-fold-column-width,var(--fjgduo-default-file-column)))));
+    grid-template-columns:clamp(var(--fjgduo-min-column),var(--fjgduo-folder-target),max(0px,calc(100% - 44px - var(--fjgduo-min-column)))) 44px minmax(0,1fr);
+}
+.fjgduo-fold-expanded .duo-navigator.duo-wide .duo-file-column {
+    max-inline-size:min(100%,max(112px,var(--fjgduo-fold-user-file-limit,var(--fjgduo-fold-column-width,100%))));
+}
+/* Scale the effective Style Settings values, not independent hard-coded font sizes. */
+:is(.fjgduo-fold-unknown,.fjgduo-fold-compact,.fjgduo-fold-expanded).fjgduo-fold-tight .duo-navigator .fjgduo-folder-name {
+    font-size:calc(var(--fjgduo-folder-font-size) * .9);
+}
+:is(.fjgduo-fold-unknown,.fjgduo-fold-compact,.fjgduo-fold-expanded).fjgduo-fold-tight .duo-navigator .fjgduo-folder-name.is-root-folder {
+    font-size:calc((var(--fjgduo-folder-font-size) + 2.5px) * .9);
+}
+:is(.fjgduo-fold-unknown,.fjgduo-fold-compact,.fjgduo-fold-expanded).fjgduo-fold-tight .duo-navigator .fjgduo-nav-file-title {
+    font-size:calc(var(--fjgduo-file-font-size) * .9);
+}
+.fjgduo-host:is(.fjgduo-fold-unknown,.fjgduo-fold-compact,.fjgduo-fold-expanded) { position:relative; }
+:is(.fjgduo-fold-unknown,.fjgduo-fold-compact,.fjgduo-fold-expanded) > .fjgduo-fold-overlay {
+    position:absolute;
+    z-index:6;
+    inset:auto 8px 8px 8px;
+    inline-size:max-content;
+    max-inline-size:calc(100% - 16px);
+    padding:4px 8px;
+    border:1px solid var(--background-modifier-border);
+    border-radius:4px;
+    background:var(--background-primary);
+    color:var(--text-muted);
+    overflow-wrap:anywhere;
+    font:var(--font-ui-smaller) var(--font-interface);
+    pointer-events:none;
+}

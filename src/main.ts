@@ -1,13 +1,18 @@
-import { Plugin, addIcon, TAbstractFile, TFile, TFolder, Notice, Platform, WorkspaceLeaf } from 'obsidian';
+import { Plugin, App, EventRef, Modal, Setting, addIcon, TAbstractFile, TFile, TFolder, Notice, Platform, WorkspaceLeaf } from 'obsidian';
 import { FileTreeView } from './FileTreeView';
 import { ZoomInIcon, ZoomOutIcon, ZoomOutDoubleIcon, LocationIcon, SpaceIcon } from './utils/icons';
-import { FileTreeAlternativePluginSettings, FileTreeAlternativePluginSettingsTab, DEFAULT_SETTINGS } from './settings';
+import { FileTreeAlternativePluginSettings, FileTreeAlternativePluginSettingsTab, DEFAULT_SETTINGS, validateFoldTuning } from './settings';
 import { FileTreeViewMode, VaultChange, VaultChangeDetail, eventTypes } from 'utils/types';
 import { getBookmarkTitle } from 'utils/Utils';
 import { ensureNoteProperties, ensureNotePropertiesWithNotice, isMarkdownFile } from 'utils/noteProperties';
 import { getPageText } from 'utils/noteContent';
 import { DebouncedBatchQueue, getMobilePerformancePolicy } from './mobilePerformance';
 import { VaultVoiceModal } from './live/modal';
+import { FoldLayoutController, type FoldPose } from './foldLayout';
+
+type AppWithCommands = App & { commands?: { removeCommand?: (id: string) => void } };
+const FOLD_COMMAND_IDS = ['fold-trace-inspect', 'fold-trace-copy', 'fold-trace-save'] as const;
+const FOLD_POSES: readonly FoldPose[] = ['unlabeled', 'folded', 'unfolded', 'drawer', 'keyboard', 'rotation', 'split', 'resume'];
 
 const FileFocusIcon = `
     <g fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
@@ -31,6 +36,11 @@ const DELETE_CURRENT_FILE_COMMAND_ID = 'app:delete-file';
 const FILE_FOCUS_TRASH_ICON = 'fjg-file-focus-duo-trash';
 
 export default class FileTreeAlternativePlugin extends Plugin {
+    private foldController?: FoldLayoutController;
+    private foldViews?: Map<FileTreeView, () => void>;
+    private foldLayoutEvent?: EventRef;
+    private foldTraceModal?: Modal;
+    private unregisterFoldCommands?: () => void;
     private vaultVoiceModal: VaultVoiceModal | null = null;
     settings: FileTreeAlternativePluginSettings;
     lastActiveFile: TFile | null = null;
@@ -76,6 +86,7 @@ export default class FileTreeAlternativePlugin extends Plugin {
         // Load Settings
         this.addSettingTab(new FileTreeAlternativePluginSettingsTab(this.app, this));
         await this.loadSettings();
+        if (this.settings.foldAwareLayout === true) this.syncFoldLayout();
         await this.importOriginalVisibilitySettings();
         this.lastActiveFile = this.app.workspace.getActiveFile();
         this.addCommand({ id: 'talk-to-vault', name: 'Talk to Your Vault', callback: () => this.openVaultVoice() });
@@ -232,6 +243,7 @@ export default class FileTreeAlternativePlugin extends Plugin {
     }
 
     onunload() {
+        if (this.foldController) this.stopFoldLayout();
         this.vaultVoiceModal?.shutdown();
         console.log('Unloading FJG File Focus Duo Plugin');
         this.mobileVaultChangeQueue.clear();
@@ -273,7 +285,111 @@ export default class FileTreeAlternativePlugin extends Plugin {
     }
 
     async saveSettings() {
+        if (this.settings.foldAwareLayout === true || this.foldController) this.syncFoldLayout();
         await this.saveData(this.settings);
+    }
+
+    syncFoldLayout() {
+        if (this.settings.foldAwareLayout !== true || !Platform.isMobile) {
+            if (this.foldController) this.stopFoldLayout();
+            return;
+        }
+        const tuning = validateFoldTuning(this.settings);
+        if (this.foldController) {
+            this.foldController.update(tuning);
+            return;
+        }
+        const controller = new FoldLayoutController(tuning);
+        this.foldController = controller;
+        this.foldViews = new Map();
+        this.foldLayoutEvent = this.app.workspace.on('layout-change', () => controller.signal('layout-change'));
+        for (const view of this.mountedFileTreeViews) this.attachFoldView(view);
+        this.registerFoldTraceCommands(controller);
+    }
+
+    private attachFoldView(view: FileTreeView) {
+        const controller = this.foldController;
+        const views = this.foldViews;
+        if (!controller || !views || views.has(view) || view.getViewType() !== this.VIEW_TYPE || !view.isReactTreeMounted()) return;
+        const remeasure = () => {
+            if (this.foldController === controller && views.has(view)) controller.signal('layout-commit');
+        };
+        views.set(view, controller.attach(view.contentEl, profile => {
+            if (profile === null || this.foldController === controller) view.setFoldProfile(profile, profile === null ? undefined : remeasure);
+        }));
+    }
+
+    private stopFoldLayout() {
+        const controller = this.foldController;
+        this.foldController = undefined;
+        if (this.foldLayoutEvent) this.app.workspace.offref(this.foldLayoutEvent);
+        this.foldLayoutEvent = undefined;
+        this.unregisterFoldCommands?.();
+        this.unregisterFoldCommands = undefined;
+        this.foldTraceModal?.close();
+        this.foldTraceModal = undefined;
+        controller?.dispose();
+        this.foldViews?.clear();
+        this.foldViews = undefined;
+    }
+
+    private registerFoldTraceCommands(controller: FoldLayoutController) {
+        // The public Plugin.removeCommand arrived after the plugin's minimum supported Obsidian version.
+        const registry = (this.app as AppWithCommands).commands;
+        const remove = typeof this.removeCommand === 'function'
+            ? (id: string) => this.removeCommand(id)
+            : typeof registry?.removeCommand === 'function'
+                ? (id: string) => registry.removeCommand(`${this.manifest.id}:${id}`)
+                : undefined;
+        if (!remove) return; // Never create commands we cannot clean up.
+        this.unregisterFoldCommands = () => FOLD_COMMAND_IDS.forEach(remove);
+        this.addCommand({ id: FOLD_COMMAND_IDS[0], name: 'Inspect local fold trace', callback: () => {
+            if (this.foldController !== controller) return;
+            this.foldTraceModal?.close();
+            const modal = new Modal(this.app);
+            modal.setTitle('Duo fold trace');
+            let pose: FoldPose = 'unlabeled';
+            new Setting(modal.contentEl).setName('Record a manual pose label').setDesc('A label you choose, not a detected hinge state.')
+                .addDropdown(dropdown => {
+                    for (const label of FOLD_POSES) dropdown.addOption(label, label);
+                    dropdown.setValue(pose).onChange(value => { pose = value as FoldPose; });
+                }).addButton(button => button.setButtonText('Record pose').onClick(() => {
+                    if (this.foldController !== controller) return;
+                    controller.setPose(pose);
+                    details.setText(controller.traceText());
+                }));
+            const details = modal.contentEl.createEl('pre', { text: controller.traceText() });
+            this.foldTraceModal = modal;
+            modal.open();
+        }});
+        this.addCommand({ id: FOLD_COMMAND_IDS[1], name: 'Copy local fold trace', callback: async () => {
+            if (this.foldController !== controller) return;
+            try { await navigator.clipboard.writeText(controller.traceText()); new Notice('Duo fold trace copied.'); }
+            catch { new Notice('Could not copy the Duo fold trace. Try the local save command.'); }
+        }});
+        this.addCommand({ id: FOLD_COMMAND_IDS[2], name: 'Save fold trace in this vault', callback: () => {
+            if (this.foldController === controller) void this.saveFoldTrace(controller);
+        }});
+    }
+
+    private async saveFoldTrace(controller: FoldLayoutController) {
+        const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const trace = controller.traceText();
+        for (let attempt = 0; attempt < 8; attempt++) {
+            if (this.foldController !== controller) return;
+            const path = `Duo fold trace ${stamp}${attempt ? `-${attempt}` : ''}.json`;
+            try {
+                if (await this.app.vault.adapter.exists(path)) continue;
+                if (this.foldController !== controller) return;
+                await this.app.vault.create(path, trace);
+                new Notice('Duo fold trace saved in this vault.');
+                return;
+            } catch {
+                if (await this.app.vault.adapter.exists(path).catch(() => false)) continue;
+                break;
+            }
+        }
+        if (this.foldController === controller) new Notice('Could not save the Duo fold trace. No existing note was changed.');
     }
 
     async setFollowActiveFile(value: boolean) {
@@ -317,10 +433,15 @@ export default class FileTreeAlternativePlugin extends Plugin {
 
     registerMountedFileTreeView = (view: FileTreeView) => {
         this.mountedFileTreeViews.add(view);
+        if (this.foldController) this.attachFoldView(view);
     };
 
     unregisterMountedFileTreeView = (view: FileTreeView) => {
         this.mountedFileTreeViews.delete(view);
+        if (this.foldViews) {
+            this.foldViews.get(view)?.();
+            this.foldViews.delete(view);
+        }
         if (this.isMobilePerformanceModeEnabled() && this.mountedFileTreeViews.size === 0) {
             this.mobileVaultChangeQueue.clear();
         }

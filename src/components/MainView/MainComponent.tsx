@@ -1,4 +1,5 @@
 import { AdaptiveNavigator } from './AdaptiveNavigator';
+import type { FoldProfile } from '../../foldLayout';
 import { Platform } from 'obsidian';
 import { TAbstractFile, TFile, TFolder, Notice } from 'obsidian';
 import React, { useEffect, useRef } from 'react';
@@ -17,6 +18,8 @@ import { CustomVaultChangeBatchEvent, CustomVaultChangeEvent, FileTreeViewMode, 
 interface MainTreeComponentProps {
     fileTreeView: FileTreeView;
     plugin: FileTreeAlternativePlugin;
+    foldProfile?: FoldProfile;
+    foldRemeasure?: () => void;
 }
 
 export default function MainTreeComponent(props: MainTreeComponentProps) {
@@ -583,7 +586,7 @@ export default function MainTreeComponent(props: MainTreeComponentProps) {
         }
     }
 
-    if (Platform.isMobile || !plugin.settings.duoDesktopLegacyLayout) return <AdaptiveNavigator plugin={plugin} fileTreeView={props.fileTreeView}/>;
+    if (Platform.isMobile || !plugin.settings.duoDesktopLegacyLayout) return <AdaptiveNavigator plugin={plugin} fileTreeView={props.fileTreeView} foldProfile={props.foldProfile} foldRemeasure={props.foldRemeasure}/>;
 
     return (
         <React.Fragment>

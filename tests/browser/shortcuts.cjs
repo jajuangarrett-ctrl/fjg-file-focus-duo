@@ -4,18 +4,21 @@ const assert=require('assert/strict');
  const browser=await chromium.launch({executablePath:process.env.DUO_BROWSER_BIN || '/Volumes/Extreme SSD/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',headless:true});
  for(const [width,height] of [[264,403],[390,448],[382,567],[867,558],[567,382]]){
   const page=await browser.newPage({viewport:{width,height},hasTouch:true});
+  page.setDefaultTimeout(8000);
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto('http://127.0.0.1:8847/tests/browser/index.html');
   await page.evaluate(({width,height})=>{document.body.classList.add('is-mobile');const p=document.getElementById('panel');p.style.width=width+'px';p.style.height=height+'px';},{width,height});
   const panel=page.getByRole('region',{name:'File Focus shortcuts'});
   await panel.waitFor();
-  for(const id of ['home','brief','tasks','agenda','voice','dashboard','new-folder','folder-tags','folder-navigator','omnisearch','follow','folder-sort','folder-path','collapse','expand','search','new-note','delete-note','quick-format','properties','move-note','auto-title','semantic-links','copy-text','copy-path','file-sort','back','folders','root','recent','bookmarks']) assert.equal(await panel.locator(`[data-action-id="${id}"]`).count(),1,id);
+  for(const id of ['home','brief','tasks','agenda','voice','dashboard','new-folder','folder-tags','omnisearch','follow','folder-sort','folder-path','collapse','expand','search','new-note','delete-note','quick-format','properties','move-note','auto-title','semantic-links','copy-text','copy-path','file-sort','back','folders','root','recent','bookmarks']) assert.equal(await panel.locator(`[data-action-id="${id}"]`).count(),1,id);
   assert.ok(await panel.locator('button').evaluateAll(bs=>bs.every(b=>b.getBoundingClientRect().height>=44 && b.getBoundingClientRect().width>=44)));
   assert.ok(await page.locator('.duo-main-scroll').evaluate(el=>el.scrollWidth<=el.clientWidth+1),'horizontal overflow');
-  await panel.getByRole('searchbox').fill('folder navigator');
-  assert.equal(await panel.locator('button:visible').count(),1);
-  await panel.locator('button:visible').click();
-  assert.ok((await page.evaluate(()=>window.notices)).some(n=>n.includes('FJG Note Navigator Toolbar')));
+  assert.equal(await panel.locator('[data-action-id="folder-navigator"]').count(),0);
+  await panel.getByRole('button',{name:'Find a button',exact:true}).tap();
+  await panel.getByRole('searchbox').fill('omnisearch');
+  assert.equal(await panel.locator('[data-action-id]:visible').count(),1);
+  await panel.locator('[data-action-id]:visible').click();
+  assert.ok((await page.evaluate(()=>window.notices)).some(n=>n.includes('not available')));
   for(let i=0;i<3;i++){
    await page.getByRole('button',{name:'Folders',exact:true}).click();
    assert.equal(await panel.count(),0);

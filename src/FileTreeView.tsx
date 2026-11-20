@@ -3,7 +3,9 @@ import React from 'react';
 import { Root, createRoot } from 'react-dom/client';
 import FileTreeAlternativePlugin from './main';
 import MainTreeComponent from './components/MainView/MainComponent';
+import { prepareFoldScrollHandoff } from './components/MainView/FoldScrollAnchor';
 import { RecoilRoot } from 'recoil';
+import type { FoldProfile } from './foldLayout';
 import { shouldActivateDeferredView } from './mobilePerformance';
 
 export class FileTreeView extends ItemView {
@@ -12,6 +14,8 @@ export class FileTreeView extends ItemView {
     root: Root | undefined;
     deferredActivationObserver: IntersectionObserver | undefined;
     deferredActivationFrame: number | undefined;
+    private foldProfile?: FoldProfile;
+    private foldRemeasure?: () => void;
 
     constructor(leaf: WorkspaceLeaf, plugin: FileTreeAlternativePlugin) {
         super(leaf);
@@ -42,6 +46,8 @@ export class FileTreeView extends ItemView {
             this.root.unmount();
             this.root = undefined;
             this.plugin.unregisterMountedFileTreeView(this);
+            this.foldProfile = undefined;
+            this.foldRemeasure = undefined;
         }
         this.contentEl.empty();
     }
@@ -137,10 +143,24 @@ export class FileTreeView extends ItemView {
         this.destroy();
         this.root = createRoot(this.contentEl);
         this.plugin.registerMountedFileTreeView(this);
-        this.root.render(
+        this.renderTree();
+    }
+
+    setFoldProfile(profile: FoldProfile | null, remeasure?: () => void) {
+        const next = profile ?? undefined;
+        if (this.foldProfile === next && this.foldRemeasure === remeasure) return;
+        if (this.root && this.foldProfile !== next) prepareFoldScrollHandoff(this.contentEl);
+        this.foldProfile = next;
+        this.foldRemeasure = profile === null ? undefined : remeasure;
+        this.renderTree();
+    }
+
+    private renderTree() {
+        this.root?.render(
             <div className="fjgduo-tree-plugin-view">
                 <RecoilRoot>
-                    <MainTreeComponent fileTreeView={this} plugin={this.plugin} />
+                    <MainTreeComponent fileTreeView={this} plugin={this.plugin}
+                        {...(this.foldProfile ? { foldProfile: this.foldProfile, foldRemeasure: this.foldRemeasure } : {})} />
                 </RecoilRoot>
             </div>
         );

@@ -16,6 +16,8 @@ import type { FileTreeView } from '../../FileTreeView';
 import { backAction, breadcrumbLabel } from '../../layoutNavigation';
 import { AllButtonsModal } from './AllButtonsModal';
 import { ShortcutPanel } from './ShortcutPanel';
+import { FoldScrollAnchor } from './FoldScrollAnchor';
+import type { FoldProfile } from '../../foldLayout';
 import { DuoAction, FOLDER_SELECTED, FOCUS_SEARCH } from './duoActions';
 
 
@@ -29,7 +31,9 @@ class LauncherModal extends Modal {
     onClose() { this.afterClose(); }
 }
 
-export function AdaptiveNavigator({plugin, fileTreeView}: {plugin: FileTreeAlternativePlugin; fileTreeView: FileTreeView}) {
+export function AdaptiveNavigator({plugin, fileTreeView, foldProfile, foldRemeasure}: {
+    plugin: FileTreeAlternativePlugin; fileTreeView: FileTreeView; foldProfile?: FoldProfile; foldRemeasure?: () => void;
+}) {
     const [view, setView] = useRecoilState(state.view);
     const [path, setPath] = useRecoilState(state.activeFolderPath);
     const [folder, setFolder] = useRecoilState(state.focusedFolder);
@@ -78,7 +82,8 @@ export function AdaptiveNavigator({plugin, fileTreeView}: {plugin: FileTreeAlter
         const value = Number(localStorage.getItem('fjgFileFocusDuo-column-ratio'));
         return value >= .25 && value <= .55 ? value : .35;
     });
-    const wide = width >= plugin.settings.duoColumnWidth;
+    const [foldDividerUsed, setFoldDividerUsed] = useState(false);
+    const wide = foldProfile === undefined ? width >= plugin.settings.duoColumnWidth : foldProfile === 'expanded';
     const focusMode = view === 'recent' || view === 'bookmarks';
     const atRoot = !path || path === '/';
     const [rootFilesVisible, setRootFilesVisible] = useState(false);
@@ -99,7 +104,17 @@ export function AdaptiveNavigator({plugin, fileTreeView}: {plugin: FileTreeAlter
         if (host.current) observer.observe(host.current);
         return () => observer.disconnect();
     }, []);
-    useLayoutEffect(() => { pendingJump.current = Boolean(path) && !focusMode; }, [path, wide, focusMode, jump]);
+    const lastNavigation = useRef<{ path: string; wide: boolean; focusMode: boolean; jump: number; foldProfile?: FoldProfile }>();
+    const previousNavigation = lastNavigation.current;
+    const foldTransitionOnly = Boolean(previousNavigation &&
+        previousNavigation.foldProfile !== foldProfile &&
+        previousNavigation.path === path && previousNavigation.focusMode === focusMode && previousNavigation.jump === jump);
+    useLayoutEffect(() => {
+        lastNavigation.current = { path, wide, focusMode, jump, foldProfile };
+    });
+    useLayoutEffect(() => {
+        if (!foldTransitionOnly) pendingJump.current = Boolean(path) && !focusMode;
+    }, [path, wide, focusMode, jump]);
     useLayoutEffect(() => {
         if (!path || focusMode || !pendingJump.current || !files.length) return;
         if (!wide) { const selected=plugin.app.vault.getAbstractFileByPath(path); if(selected instanceof TFolder && selected !== folder) setFolder(selected); }
@@ -220,9 +235,17 @@ export function AdaptiveNavigator({plugin, fileTreeView}: {plugin: FileTreeAlter
         if (!host.current) return;
         const rect = host.current.getBoundingClientRect();
         const next = Math.max(.25, Math.min(.55, (e.clientX - rect.left) / rect.width));
+        if (foldProfile !== undefined) setFoldDividerUsed(true);
         setRatio(next); localStorage.setItem('fjgFileFocusDuo-column-ratio', String(next));
     };
-    return <div ref={host} className={`duo-navigator ${Platform.isPhone && plugin.settings.compactTextPhone ? 'duo-compact-text' : ''} ${wide ? 'duo-wide' : 'duo-compact'} ${plugin.settings.fixedHeaderInFileList ? '' : 'duo-unpinned'} ${showFiles ? '' : 'duo-root-folders-only'}`} data-layout={wide ? 'columns':'drilldown'} style={{'--duo-folder-ratio': `${ratio*100}%`} as React.CSSProperties}>
+    const layoutStyle = {'--duo-folder-ratio': `${ratio*100}%`} as React.CSSProperties;
+    if (foldProfile !== undefined && foldDividerUsed) {
+        (layoutStyle as Record<string, string>)['--fjgduo-fold-user-column'] = `${ratio * 100}%`;
+        (layoutStyle as Record<string, string>)['--fjgduo-fold-user-file-limit'] = '100%';
+    }
+    return <FoldScrollAnchor host={host} profile={foldProfile} remeasure={foldRemeasure} wide={wide}
+        navigation={[path, view, jump, shortcuts, showFiles]} hasNavigationPending={() => pendingJump.current && Boolean(files.length) && !focusMode}>
+        <div ref={host} className={`duo-navigator ${Platform.isPhone && plugin.settings.compactTextPhone ? 'duo-compact-text' : ''} ${wide ? 'duo-wide' : 'duo-compact'} ${plugin.settings.fixedHeaderInFileList ? '' : 'duo-unpinned'} ${showFiles ? '' : 'duo-root-folders-only'}`} data-layout={wide ? 'columns':'drilldown'} style={layoutStyle}>
         <div ref={pane} className="duo-pane duo-main-scroll">
             {toolbar}
             {Platform.isMobile && <div className="duo-panel-switch" role="group" aria-label="Left panel contents">
@@ -232,7 +255,7 @@ export function AdaptiveNavigator({plugin, fileTreeView}: {plugin: FileTreeAlter
             {shortcuts && <ShortcutPanel context={path || plugin.app.vault.getName()} sections={actionSections} run={runShortcut}/>}
             <div className="duo-columns" hidden={focusMode || shortcuts}>
                 <div className="duo-folder-column" aria-label="Folders"><MainFolder plugin={plugin} adaptive actionsRef={folderActions}/></div>
-                {wide && showFiles && <div className="duo-divider" role="separator" aria-label="Resize folder column" aria-orientation="vertical" aria-valuemin={25} aria-valuemax={55} aria-valuenow={Math.round(ratio*100)} tabIndex={0} onPointerDown={e=>{e.currentTarget.setPointerCapture(e.pointerId);resize(e);}} onPointerMove={e=>{if(e.currentTarget.hasPointerCapture(e.pointerId))resize(e);}} onKeyDown={e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault(); const n=Math.max(.25,Math.min(.55,ratio+(e.key==='ArrowLeft'?-.025:.025)));setRatio(n);localStorage.setItem('fjgFileFocusDuo-column-ratio',String(n));}}}/>}
+                {wide && showFiles && <div className="duo-divider" role="separator" aria-label="Resize folder column" aria-orientation="vertical" aria-valuemin={25} aria-valuemax={55} aria-valuenow={Math.round(ratio*100)} tabIndex={0} onPointerDown={e=>{e.currentTarget.setPointerCapture(e.pointerId);resize(e);}} onPointerMove={e=>{if(e.currentTarget.hasPointerCapture(e.pointerId))resize(e);}} onKeyDown={e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault(); if (foldProfile !== undefined) setFoldDividerUsed(true); const n=Math.max(.25,Math.min(.55,ratio+(e.key==='ArrowLeft'?-.025:.025)));setRatio(n);localStorage.setItem('fjgFileFocusDuo-column-ratio',String(n));}}}/>}
                 <div ref={fileStart} hidden={!showFiles} className={`duo-file-column${wide ? ' duo-pane':''}`} aria-label="Folder files"><FileComponent plugin={plugin} wide={wide} adaptive actionsRef={fileActions}/></div>
             </div>
             {focusMode && !shortcuts && <FocusPanel plugin={plugin} mode={view as 'recent'|'bookmarks'} adaptive/>}
@@ -245,5 +268,5 @@ export function AdaptiveNavigator({plugin, fileTreeView}: {plugin: FileTreeAlter
             }}/>,
             launch.modal.contentEl
         )}
-    </div>;
+    </div></FoldScrollAnchor>;
 }
