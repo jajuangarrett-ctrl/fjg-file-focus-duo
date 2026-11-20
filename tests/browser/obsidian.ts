@@ -12,6 +12,7 @@ export class Setting {}
 export class Plugin {}
 export class ItemView {}
 export class FileView extends ItemView { file: TFile | null = null; }
+export class WorkspaceMobileDrawer { collapse() {} }
 export class Menu {
  items:any[]=[];
  addItem(fn:any){const item:any={setTitle(t:any){this.title=t;return this;},setIcon(){return this;},setDisabled(d:any){this.disabled=d;return this;},setChecked(){return this;},onClick(fn:any){this.run=fn;return this;}};fn(item);this.items.push(item);return this;}

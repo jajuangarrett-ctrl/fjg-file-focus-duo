@@ -1,12 +1,30 @@
-import { Modal, TFile, type App } from 'obsidian';
+import { FileView, Modal, Platform, TFile, WorkspaceMobileDrawer, setIcon, type App } from 'obsidian';
 import type FileTreeAlternativePlugin from '../main';
 import { VaultLiveSession, type LiveState } from './session';
-import { VaultLiveTools, type VaultPort } from './vault-tools';
-import { VaultSearchResultsModal } from './search-results';
+import { VaultLiveTools, type VaultPort, type VaultSearchRequest } from './vault-tools';
+import { VaultSearchResultsContent, VaultSearchResultsModal } from './search-results';
+import { followVoiceViewport } from './presentation';
 
 export class VaultVoiceModal extends Modal {
   private session?: VaultLiveSession;
   private closed = false;
+  private presentation: 'shown' | 'minimizing' | 'minimized' | 'closing' = 'shown';
+  private initialized = false;
+  private restoreRequested = false;
+  private stopViewport?: () => void;
+  private restoreDock?: HTMLElement;
+  private quickMute?: HTMLButtonElement;
+  private restoreButton?: HTMLButtonElement;
+  private restoreStatus?: HTMLElement;
+  private mobileResults?: VaultSearchResultsContent;
+  private mobileResultsArea?: HTMLElement;
+  private mobileResultsBody?: HTMLElement;
+  private backToChat?: HTMLButtonElement;
+  private chat!: HTMLElement;
+  private scrollArea!: HTMLElement;
+  private minimizeButton?: HTMLButtonElement;
+  private audioDock?: HTMLElement;
+  private audioAnchor!: Comment;
   private muted = false;
   private status!: HTMLElement;
   private inputStatus!: HTMLElement;
@@ -37,9 +55,36 @@ export class VaultVoiceModal extends Modal {
     super(app); this.plugin = plugin; this.voiceSelection = selection; this.release = release;
   }
   onOpen(): void {
+    this.presentation = 'shown';
+    if (!this.initialized) { this.initialized = true; this.buildContent(); }
+    if (Platform.isMobile) {
+      this.containerEl.classList.add('fjgduo-vault-live-mobile-host');
+      this.minimizeButton?.setText(this.app.workspace.getActiveFile() ? 'Show Note' : 'Minimize');
+      this.stopViewport = followVoiceViewport(this.containerEl, width => {
+        this.containerEl.classList.toggle('fjgduo-vault-live-narrow', width < 560);
+      });
+    }
+  }
+  private buildContent(): void {
     this.titleEl.setText('Talk to your vault');
     this.modalEl.addClass('fjgduo-vault-live-modal');
-    const root = this.contentEl;
+    const body = this.contentEl;
+    const chat = this.chat = body.createDiv({ cls: 'fjgduo-vault-live-chat' });
+    const root = this.scrollArea = chat.createDiv({ cls: 'fjgduo-vault-live-scroll' });
+    if (Platform.isMobile) {
+      const minimize = this.minimizeButton = this.titleEl.ownerDocument.createElement('button');
+      minimize.type = 'button'; minimize.className = 'fjgduo-vault-live-minimize'; minimize.textContent = 'Minimize';
+      minimize.title = 'Show the note and keep the conversation open';
+      minimize.addEventListener('click', () => this.minimizeMobile());
+      this.titleEl.after(minimize);
+      this.mobileResultsArea = body.createDiv({ cls: 'fjgduo-vault-live-mobile-results' });
+      this.mobileResultsArea.hidden = true;
+      const header = this.mobileResultsArea.createDiv({ cls: 'fjgduo-vault-live-results-header' });
+      header.createEl('h2', { text: 'Choose a search result' });
+      this.backToChat = header.createEl('button', { text: 'Back to Chat' });
+      this.backToChat.addEventListener('click', () => this.closeMobileResults(true));
+      this.mobileResultsBody = this.mobileResultsArea.createDiv({ cls: 'fjgduo-vault-live-results-body' });
+    }
     root.createEl('p', { cls: 'fjgduo-vault-live-intro', text: 'Ask about your notes, capture a thought, or say what to update. Clear edits save immediately.' });
     root.createEl('p', { cls: 'fjgduo-vault-live-caption', text: 'Starting voice or sending text shares your messages, the vault name, selected paths and relevant note excerpts with OpenAI. Voice also sends microphone audio; starting with text keeps the microphone off. Spoken replies are on. API charges may apply. ' + (this.plugin.settings.liveApiKey?.trim() ? 'Uses the key saved in File Focus Duo.' : 'Uses the key saved in Objective Manager for this conversation without copying or saving it in Duo.') });
     this.status = root.createEl('p', { cls: 'fjgduo-vault-live-status', text: 'Microphone off — review the details before starting', attr: { role: 'status', 'aria-live': 'polite' } });
@@ -50,12 +95,7 @@ export class VaultVoiceModal extends Modal {
     this.startButton.addEventListener('click', () => void this.start());
     this.muteButton = controls.createEl('button', { text: 'Mute microphone', attr: { 'aria-pressed': 'false' } });
     this.muteButton.disabled = true;
-    this.muteButton.addEventListener('click', () => {
-      this.muted = !this.muted; this.session?.mute(this.muted);
-      this.muteButton.setText(this.muted ? 'Unmute microphone' : 'Mute microphone');
-      this.muteButton.setAttribute('aria-pressed', String(this.muted));
-      this.status.setText(this.muted ? 'Microphone muted' : 'Ready — start speaking');
-    });
+    this.muteButton.addEventListener('click', () => this.toggleMute());
     this.endButton = controls.createEl('button', { text: 'End conversation' });
     this.endButton.disabled = true; this.endButton.addEventListener('click', () => this.session?.end());
     this.expandButton = controls.createEl('button', { text: 'Expand conversation', cls: 'fjgduo-vault-live-expand' });
@@ -64,9 +104,12 @@ export class VaultVoiceModal extends Modal {
     this.textToggle.addEventListener('click', () => {
       this.composer.hidden = !this.composer.hidden;
       this.textToggle.setAttribute('aria-expanded', String(!this.composer.hidden));
-      if (!this.composer.hidden) this.textInput.focus();
+      if (!this.composer.hidden) {
+        this.textInput.focus();
+        if (Platform.isMobile) this.scrollArea.scrollTop = this.scrollArea.scrollHeight;
+      }
     });
-    this.composer = root.createEl('form', { cls: 'fjgduo-vault-live-composer' }); this.composer.hidden = true;
+    this.composer = (Platform.isMobile ? chat : root).createEl('form', { cls: 'fjgduo-vault-live-composer' }); this.composer.hidden = true;
     const label = this.composer.createEl('label', { text: 'Message to your vault assistant' });
     this.textInput = label.createEl('textarea', { placeholder: 'Type the same request you would say…', attr: { 'aria-label': 'Message to your vault assistant', rows: '3', maxlength: '8000' } });
     this.sendButton = this.composer.createEl('button', { text: 'Send message', cls: 'mod-cta', attr: { type: 'submit' } });
@@ -75,7 +118,9 @@ export class VaultVoiceModal extends Modal {
     this.textInput.addEventListener('keydown', event => {
       if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); void this.sendText(); }
     });
-    this.audio = root.createEl('audio', { attr: { controls: '', autoplay: '', 'aria-label': 'Assistant voice playback' } });
+    this.audio = root.createEl('audio', { attr: { controls: '', autoplay: '', playsinline: '', 'aria-label': 'Assistant voice playback' } });
+    this.audioAnchor = root.ownerDocument.createComment('voice playback position');
+    this.audio.before(this.audioAnchor);
     this.transcript = root.createDiv({ cls: 'fjgduo-vault-live-transcript', attr: { role: 'log', 'aria-label': 'Conversation', 'aria-live': 'polite' } });
     this.transcript.createEl('p', { cls: 'fjgduo-vault-live-caption', text: 'Try: “Find my notes about summer planning” or “Add this thought to my meeting note.”' });
     this.sources = root.createDiv({ cls: 'fjgduo-vault-live-sources', attr: { 'aria-label': 'Source notes' } });
@@ -126,11 +171,24 @@ export class VaultVoiceModal extends Modal {
     }, (path) => this.addSource(path), (result, request) => {
       if (this.closed) return;
       this.coverage.setText(result.coverage);
+      if (this.mobileResults) { this.mobileResults.update(result, request); return; }
       if (this.resultsModal) { this.resultsModal.update(result, request); return; }
       if (result.matches.length < 2) return;
-      this.resultsModal = new VaultSearchResultsModal(this.app, result, request, async (path) => {
+      const choose = async (path: string) => {
         await this.showNote(path); this.addSource(path); session.selectedNote(path);
-      }, async (next) => { await tools.execute('search_vault', JSON.stringify(next)); }, () => { this.resultsModal = undefined; });
+      };
+      const more = async (next: VaultSearchRequest) => { await tools.execute('search_vault', JSON.stringify(next)); };
+      if (this.mobileResultsArea && this.mobileResultsBody) {
+        this.mobileResults = new VaultSearchResultsContent(this.mobileResultsBody, result, request, choose, more, () => this.closeMobileResults(),
+          busy => { if (this.backToChat) this.backToChat.disabled = busy; });
+        this.textInput.blur();
+        this.chat.hidden = true;
+        this.mobileResultsArea.hidden = false;
+        if (this.presentation === 'shown') this.backToChat?.focus({ preventScroll: true });
+        this.paintRestoreButton();
+        return;
+      }
+      this.resultsModal = new VaultSearchResultsModal(this.app, result, request, choose, more, () => { this.resultsModal = undefined; });
       this.resultsModal.open();
     });
     session = new VaultLiveSession(this.audio, {
@@ -150,8 +208,114 @@ export class VaultVoiceModal extends Modal {
       await session.start(key, this.plugin.settings.liveBackendModel, context, textOnly);
     } catch { session.dispose(); this.setState('error', 'Could not read the saved key. Check the Vault voice API key in File Focus Duo settings; no connection was made.'); }
   }
-  onClose(): void { this.closed = true; this.resultsModal?.close(); this.session?.end(); this.release(); }
-  shutdown(): void { this.session?.end(); this.session?.dispose(); this.close(); }
+  close(): void {
+    if (this.closed || this.presentation === 'closing' || this.presentation === 'minimizing') return;
+    if (this.presentation === 'minimized') { this.finish(); return; }
+    this.presentation = 'closing';
+    this.session?.end();
+    super.close();
+  }
+  onClose(): void {
+    this.stopViewport?.(); this.stopViewport = undefined;
+    if (this.closed) return;
+    if (this.presentation === 'minimizing') {
+      this.presentation = 'minimized';
+      if (this.restoreRequested) {
+        this.restoreRequested = false;
+        queueMicrotask(() => this.restoreChat());
+      } else this.showRestoreButton();
+      return;
+    }
+    this.finish();
+  }
+  shutdown(): void {
+    this.session?.end(); this.session?.dispose();
+    if (this.presentation === 'minimizing') { this.finish(); return; }
+    this.close();
+  }
+  private finish(): void {
+    if (this.closed) return;
+    this.closed = true;
+    this.stopViewport?.(); this.stopViewport = undefined;
+    this.removeRestoreButton(); this.audioDock?.remove();
+    this.resultsModal?.close(); this.session?.end(); this.release();
+  }
+  restoreChat(): void {
+    if (this.closed || !Platform.isMobile) return;
+    if (this.presentation === 'minimizing') { this.restoreRequested = true; return; }
+    if (this.presentation !== 'minimized') return;
+    this.removeRestoreButton();
+    this.shouldRestoreSelection = true;
+    this.open();
+    this.audioAnchor.after(this.audio);
+    this.audioDock?.remove(); this.audioDock = undefined;
+    if (this.mobileResults) this.backToChat?.focus({ preventScroll: true });
+    else { this.titleEl.tabIndex = -1; this.titleEl.focus({ preventScroll: true }); }
+  }
+  private closeMobileResults(focus = false): void {
+    if (!this.mobileResultsArea || !this.mobileResults) return;
+    this.mobileResults = undefined;
+    this.mobileResultsBody?.empty();
+    this.mobileResultsArea.hidden = true;
+    this.chat.hidden = false;
+    this.paintRestoreButton();
+    if (focus) this.textToggle.focus({ preventScroll: true });
+  }
+  private minimizeMobile(): void {
+    if (this.closed || this.presentation !== 'shown') return;
+    this.presentation = 'minimizing';
+    // Pop Obsidian's native modal keymap/history scope without ending the call.
+    // Keep the actual playback element in the same document while the modal detaches.
+    this.textInput.blur();
+    const doc = this.modalEl.ownerDocument;
+    this.audioDock = doc.createElement('div'); this.audioDock.hidden = true;
+    doc.body.append(this.audioDock);
+    this.audioDock.append(this.audio);
+    this.shouldRestoreSelection = false; // Do not focus the old editor or summon its on-screen keyboard.
+    super.close();
+  }
+  private showRestoreButton(): void {
+    const doc = this.modalEl.ownerDocument;
+    const dock = this.restoreDock = doc.createElement('div');
+    dock.className = 'fjgduo-vault-live-restore-dock';
+    const button = this.restoreButton = dock.createEl('button', { cls: 'fjgduo-vault-live-restore', attr: { type: 'button' } });
+    button.setAttribute('data-ignore-swipe', '');
+    button.createSpan({ text: 'Show Chat' });
+    this.restoreStatus = button.createSpan({ cls: 'fjgduo-vault-live-restore-status' });
+    button.addEventListener('click', () => this.restoreChat());
+    const mute = this.quickMute = dock.createEl('button', { cls: 'fjgduo-vault-live-quick-mute', attr: { type: 'button', 'data-ignore-swipe': '' } });
+    mute.addEventListener('click', () => this.toggleMute());
+    this.paintRestoreButton();
+    doc.body.append(dock);
+  }
+  private removeRestoreButton(): void {
+    this.restoreDock?.remove();
+    this.restoreDock = undefined; this.restoreButton = undefined; this.restoreStatus = undefined; this.quickMute = undefined;
+  }
+  private toggleMute(): void {
+    if (!this.session?.active || this.session.isTextOnly) return;
+    this.muted = !this.muted; this.session.mute(this.muted);
+    this.muteButton.setText(this.muted ? 'Unmute microphone' : 'Mute microphone');
+    this.muteButton.setAttribute('aria-pressed', String(this.muted));
+    this.status.setText(this.muted ? 'Microphone muted' : 'Ready — start speaking');
+    this.paintRestoreButton();
+  }
+  private paintRestoreButton(): void {
+    if (!this.restoreButton || !this.restoreStatus || !this.quickMute) return;
+    const state = this.status.dataset.state;
+    const hasMic = this.session?.active && !this.session.isTextOnly;
+    const micOn = hasMic && !this.muted;
+    const detail = micOn ? 'Mic on' : this.mobileResults ? 'Results' : state === 'connecting' ? 'Connecting'
+      : state === 'error' ? 'Disconnected' : this.session?.active ? (this.muted ? 'Muted' : 'Mic off') : '';
+    this.restoreButton.classList.toggle('is-mic-on', Boolean(micOn));
+    this.restoreStatus.setText(detail);
+    this.restoreStatus.hidden = !detail;
+    this.quickMute.hidden = !hasMic;
+    const label = this.muted ? 'Unmute microphone' : 'Mute microphone';
+    this.quickMute.setAttribute('aria-label', label);
+    this.quickMute.title = label;
+    setIcon(this.quickMute, this.muted ? 'mic-off' : 'mic');
+  }
   private refreshSend(): void {
     if (!this.sendButton || this.closed) return;
     const connecting = ['connecting', 'ending'].includes(this.status.dataset.state || '');
@@ -172,6 +336,7 @@ export class VaultVoiceModal extends Modal {
     }
     if (['error', 'ended'].includes(state)) { this.pendingText = ''; this.backendBusy = false; }
     this.refreshSend();
+    this.paintRestoreButton();
   }
   private addSource(path: string): void {
     if (this.closed || this.sourcePaths.has(path)) return;
@@ -180,13 +345,40 @@ export class VaultVoiceModal extends Modal {
     button.addEventListener('click', () => void this.showNote(path).then(() => this.session?.selectedNote(path)).catch(() => this.status.setText('The source note could not be opened.')));
   }
   private async showNote(path: string): Promise<void> {
+    const canPresent = () => !this.closed && this.presentation !== 'closing';
+    if (!canPresent()) throw new Error('Conversation closed.');
     const file = this.file(path);
-    const existing = this.app.workspace.getLeavesOfType('markdown').find((leaf) => leaf.getViewState().state?.file === path);
-    const leaf = existing || this.app.workspace.getLeaf('tab');
+    const workspace = this.app.workspace;
+    if (Platform.isMobile) {
+      // Prefer the active exact document, then an existing exact root tab.
+      // Never replace an unrelated, pinned, linked or sidebar tab.
+      const opensFile = (leaf: typeof workspace.activeLeaf): boolean => {
+        if (!leaf || leaf.getRoot() !== workspace.rootSplit) return false;
+        if (leaf.view instanceof FileView) return leaf.view.file?.path === path;
+        return leaf.isDeferred && leaf.getViewState().state?.file === path;
+      };
+      let existing = opensFile(workspace.activeLeaf) ? workspace.activeLeaf : null;
+      if (!existing) workspace.iterateRootLeaves(leaf => { if (!existing && opensFile(leaf)) existing = leaf; });
+      const leaf = existing || workspace.getLeaf('tab');
+      if (!existing) await leaf.openFile(file, { active: false });
+      if (!canPresent()) throw new Error('Conversation closed.');
+      await workspace.revealLeaf(leaf);
+      if (!canPresent()) throw new Error('Conversation closed.');
+      workspace.setActiveLeaf(leaf, { focus: false });
+      // Do not reveal the folder on this route: that opens the drawer in front of the note.
+      if (workspace.leftSplit instanceof WorkspaceMobileDrawer) workspace.leftSplit.collapse();
+      if (workspace.rightSplit instanceof WorkspaceMobileDrawer) workspace.rightSplit.collapse();
+      this.voiceSelection.note = path;
+      this.closeMobileResults();
+      this.minimizeMobile();
+      return;
+    }
+    const existing = workspace.getLeavesOfType('markdown').find((leaf) => leaf.getViewState().state?.file === path);
+    const leaf = existing || workspace.getLeaf('tab');
     await leaf.openFile(file);
     this.voiceSelection.note = path;
     if (file.parent) await this.plugin.revealFolderPath(file.parent.path);
-    await this.app.workspace.revealLeaf(leaf);
+    await workspace.revealLeaf(leaf);
     this.setCompact(true);
   }
   private setCompact(compact: boolean): void {
@@ -195,6 +387,9 @@ export class VaultVoiceModal extends Modal {
   }
   private addTranscript(speaker: string, delta: string): void {
     if (this.closed) return;
+    const scroller = this.scrollArea;
+    const follow = Platform.isMobile && !this.chat.hidden && this.presentation === 'shown' &&
+      (speaker === 'You' || scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 48);
     if (!this.lastText || speaker !== this.lastSpeaker) {
       const line = this.transcript.createEl('p'); line.createEl('strong', { text: `${speaker}: ` });
       this.lastText = line.createSpan(); this.lastSpeaker = speaker;
@@ -202,5 +397,6 @@ export class VaultVoiceModal extends Modal {
     this.lastText.appendText(delta);
     while (this.transcript.children.length > 80) this.transcript.firstElementChild?.remove();
     this.transcript.scrollTop = this.transcript.scrollHeight;
+    if (follow) scroller.scrollTop = scroller.scrollHeight;
   }
 }

@@ -36,7 +36,7 @@ export const LIVE_TOOLS = [
     path: string, expected_revision: string, operation: { type: 'string', enum: ['append', 'replace'] }, old_text: string, new_text: string
   }),
   tool('create_note', 'Create a new Markdown note in an existing folder only when explicitly requested. Supply an exact vault-relative .md path. Never overwrite or create a near-duplicate to avoid a conflict.', { path: string, content: string }),
-  tool('open_note', 'Navigate to an exact located note or attachment, reveal its folder, and minimize the voice panel so the user can see it. Use automatically when a request to find or discuss a specific note has one clear match.', { path: string })
+  tool('open_note', 'Open an exact located note or attachment and minimize the voice panel so the user can see the document. Use automatically when a request to find or discuss a specific note has one clear match.', { path: string })
 ];
 
 export const LIVE_INSTRUCTIONS = `You are Franklin's concise live voice assistant in FJG File Focus Duo, inside Obsidian.

@@ -6986,7 +6986,7 @@ const LIVE_TOOLS = [
         path: string, expected_revision: string, operation: { type: 'string', enum: ['append', 'replace'] }, old_text: string, new_text: string
     }),
     tool('create_note', 'Create a new Markdown note in an existing folder only when explicitly requested. Supply an exact vault-relative .md path. Never overwrite or create a near-duplicate to avoid a conflict.', { path: string, content: string }),
-    tool('open_note', 'Navigate to an exact located note or attachment, reveal its folder, and minimize the voice panel so the user can see it. Use automatically when a request to find or discuss a specific note has one clear match.', { path: string })
+    tool('open_note', 'Open an exact located note or attachment and minimize the voice panel so the user can see the document. Use automatically when a request to find or discuss a specific note has one clear match.', { path: string })
 ];
 const LIVE_INSTRUCTIONS = `You are Franklin's concise live voice assistant in FJG File Focus Duo, inside Obsidian.
 Delegation policy:
@@ -7697,22 +7697,20 @@ class VaultLiveSession {
     }
 }
 
-class VaultSearchResultsModal extends obsidian.Modal {
-    constructor(app, result, request, choose, more, release) {
-        super(app);
-        this.opening = false;
-        this.entries = new Map();
-        this.result = result;
-        this.request = request;
+/** The same result list can live inside mobile chat or in its desktop dialog. */
+class VaultSearchResultsContent {
+    constructor(root, result, request, choose, more, onSelected, onOpening = () => { }) {
+        this.root = root;
         this.choose = choose;
         this.more = more;
-        this.release = release;
-        result.matches.forEach((entry) => this.entries.set(entry.path, entry));
+        this.onSelected = onSelected;
+        this.onOpening = onOpening;
+        this.opening = false;
+        this.entries = new Map();
+        this.update(result, request);
     }
-    onOpen() { this.modalEl.addClass('fjgduo-vault-search-modal'); this.render(); }
-    onClose() { this.release(); }
     update(result, request) {
-        if (request.query !== this.request.query || request.folder !== this.request.folder || request.mode !== this.request.mode || request.offset === 0)
+        if (!this.request || request.query !== this.request.query || request.folder !== this.request.folder || request.mode !== this.request.mode || request.offset === 0)
             this.entries.clear();
         this.request = request;
         this.result = result;
@@ -7720,11 +7718,13 @@ class VaultSearchResultsModal extends obsidian.Modal {
         this.render();
     }
     render() {
-        this.titleEl.setText('Choose a search result');
-        this.contentEl.empty();
-        this.contentEl.createEl('p', { text: this.request.query ? `Matches for “${this.request.query}”` : 'Notes and files in your vault' });
-        this.contentEl.createEl('p', { cls: 'fjgduo-vault-live-caption', text: `${this.entries.size} of ${this.result.total_matches} matches shown. ${this.result.coverage}` });
-        const list = this.contentEl.createEl('ul', { cls: 'fjgduo-vault-search-list' });
+        var _a, _b;
+        const root = this.root;
+        const previousScroll = (_b = (_a = root.querySelector('ul')) === null || _a === void 0 ? void 0 : _a.scrollTop) !== null && _b !== void 0 ? _b : 0;
+        root.empty();
+        root.createEl('p', { text: this.request.query ? `Matches for “${this.request.query}”` : 'Notes and files in your vault' });
+        root.createEl('p', { cls: 'fjgduo-vault-live-caption', text: `${this.entries.size} of ${this.result.total_matches} matches shown. ${this.result.coverage}` });
+        const list = root.createEl('ul', { cls: 'fjgduo-vault-search-list' });
         for (const entry of this.entries.values()) {
             const item = list.createEl('li');
             const link = item.createEl('a', { text: entry.path.split('/').pop() || entry.path, href: '#', cls: 'internal-link', attr: { 'data-href': entry.path, 'aria-label': `Open ${entry.path}` } });
@@ -7734,15 +7734,17 @@ class VaultSearchResultsModal extends obsidian.Modal {
                 if (this.opening)
                     return;
                 this.opening = true;
+                this.onOpening(true);
                 try {
                     yield this.choose(entry.path);
-                    this.close();
+                    this.onSelected();
                 }
-                catch (_a) {
+                catch (_c) {
                     new obsidian.Notice('That result could not be opened. Search again if the note moved.');
                 }
                 finally {
                     this.opening = false;
+                    this.onOpening(false);
                 }
             }));
             item.createEl('div', { text: entry.path, cls: 'fjgduo-vault-search-path' });
@@ -7750,27 +7752,93 @@ class VaultSearchResultsModal extends obsidian.Modal {
                 item.createEl('p', { text: entry.excerpt, cls: 'fjgduo-vault-search-excerpt' });
         }
         if (!this.entries.size)
-            this.contentEl.createEl('p', { text: 'No matches on this page.' });
+            root.createEl('p', { text: 'No matches on this page.' });
         if (this.result.next_offset !== null) {
-            const button = this.contentEl.createEl('button', { text: 'Show more matches' });
+            const button = root.createEl('button', { text: 'Show more matches' });
             button.addEventListener('click', () => __awaiter(this, void 0, void 0, function* () {
                 button.disabled = true;
                 try {
                     yield this.more(Object.assign(Object.assign({}, this.request), { offset: this.result.next_offset }));
                 }
-                catch (_b) {
+                catch (_d) {
                     button.disabled = false;
                     new obsidian.Notice('Could not fetch more results. The voice session may have ended.');
                 }
             }));
         }
+        if (this.request.offset > 0)
+            list.scrollTop = previousScroll;
     }
+}
+class VaultSearchResultsModal extends obsidian.Modal {
+    constructor(app, result, request, choose, more, release) {
+        super(app);
+        this.result = result;
+        this.request = request;
+        this.choose = choose;
+        this.more = more;
+        this.release = release;
+    }
+    onOpen() {
+        this.modalEl.addClass('fjgduo-vault-search-modal');
+        this.titleEl.setText('Choose a search result');
+        this.results = new VaultSearchResultsContent(this.contentEl, this.result, this.request, this.choose, this.more, () => this.close());
+    }
+    onClose() { this.release(); }
+    update(result, request) { var _a; (_a = this.results) === null || _a === void 0 ? void 0 : _a.update(result, request); }
+}
+
+/** Follow the space available to the native modal, including the iOS keyboard. */
+function followVoiceViewport(host, onWidth) {
+    const win = host.ownerDocument.defaultView;
+    if (!win)
+        return () => { };
+    const visual = win.visualViewport;
+    let frame = 0;
+    const measure = () => {
+        var _a, _b, _c, _d, _e, _f;
+        frame = 0;
+        const rect = host.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0)
+            return;
+        const left = Math.max(rect.left, (_a = visual === null || visual === void 0 ? void 0 : visual.offsetLeft) !== null && _a !== void 0 ? _a : 0);
+        const top = Math.max(rect.top, (_b = visual === null || visual === void 0 ? void 0 : visual.offsetTop) !== null && _b !== void 0 ? _b : 0);
+        const width = Math.min(rect.right, ((_c = visual === null || visual === void 0 ? void 0 : visual.offsetLeft) !== null && _c !== void 0 ? _c : 0) + ((_d = visual === null || visual === void 0 ? void 0 : visual.width) !== null && _d !== void 0 ? _d : win.innerWidth)) - left;
+        const height = Math.min(rect.bottom, ((_e = visual === null || visual === void 0 ? void 0 : visual.offsetTop) !== null && _e !== void 0 ? _e : 0) + ((_f = visual === null || visual === void 0 ? void 0 : visual.height) !== null && _f !== void 0 ? _f : win.innerHeight)) - top;
+        if (width <= 0 || height <= 0)
+            return;
+        host.style.setProperty('--fjgduo-voice-left', `${left - rect.left}px`);
+        host.style.setProperty('--fjgduo-voice-top', `${top - rect.top}px`);
+        host.style.setProperty('--fjgduo-voice-width', `${width}px`);
+        host.style.setProperty('--fjgduo-voice-height', `${height}px`);
+        host.classList.toggle('fjgduo-vault-live-keyboard', rect.height - height > 80);
+        onWidth(width);
+    };
+    const schedule = () => { if (!frame)
+        frame = win.requestAnimationFrame(measure); };
+    const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(schedule);
+    observer === null || observer === void 0 ? void 0 : observer.observe(host);
+    win.addEventListener('resize', schedule);
+    visual === null || visual === void 0 ? void 0 : visual.addEventListener('resize', schedule);
+    visual === null || visual === void 0 ? void 0 : visual.addEventListener('scroll', schedule);
+    measure();
+    return () => {
+        if (frame)
+            win.cancelAnimationFrame(frame);
+        observer === null || observer === void 0 ? void 0 : observer.disconnect();
+        win.removeEventListener('resize', schedule);
+        visual === null || visual === void 0 ? void 0 : visual.removeEventListener('resize', schedule);
+        visual === null || visual === void 0 ? void 0 : visual.removeEventListener('scroll', schedule);
+    };
 }
 
 class VaultVoiceModal extends obsidian.Modal {
     constructor(app, plugin, selection, release) {
         super(app);
         this.closed = false;
+        this.presentation = 'shown';
+        this.initialized = false;
+        this.restoreRequested = false;
         this.muted = false;
         this.pendingText = '';
         this.backendBusy = false;
@@ -7782,9 +7850,42 @@ class VaultVoiceModal extends obsidian.Modal {
     }
     onOpen() {
         var _a;
+        this.presentation = 'shown';
+        if (!this.initialized) {
+            this.initialized = true;
+            this.buildContent();
+        }
+        if (obsidian.Platform.isMobile) {
+            this.containerEl.classList.add('fjgduo-vault-live-mobile-host');
+            (_a = this.minimizeButton) === null || _a === void 0 ? void 0 : _a.setText(this.app.workspace.getActiveFile() ? 'Show Note' : 'Minimize');
+            this.stopViewport = followVoiceViewport(this.containerEl, width => {
+                this.containerEl.classList.toggle('fjgduo-vault-live-narrow', width < 560);
+            });
+        }
+    }
+    buildContent() {
+        var _a;
         this.titleEl.setText('Talk to your vault');
         this.modalEl.addClass('fjgduo-vault-live-modal');
-        const root = this.contentEl;
+        const body = this.contentEl;
+        const chat = this.chat = body.createDiv({ cls: 'fjgduo-vault-live-chat' });
+        const root = this.scrollArea = chat.createDiv({ cls: 'fjgduo-vault-live-scroll' });
+        if (obsidian.Platform.isMobile) {
+            const minimize = this.minimizeButton = this.titleEl.ownerDocument.createElement('button');
+            minimize.type = 'button';
+            minimize.className = 'fjgduo-vault-live-minimize';
+            minimize.textContent = 'Minimize';
+            minimize.title = 'Show the note and keep the conversation open';
+            minimize.addEventListener('click', () => this.minimizeMobile());
+            this.titleEl.after(minimize);
+            this.mobileResultsArea = body.createDiv({ cls: 'fjgduo-vault-live-mobile-results' });
+            this.mobileResultsArea.hidden = true;
+            const header = this.mobileResultsArea.createDiv({ cls: 'fjgduo-vault-live-results-header' });
+            header.createEl('h2', { text: 'Choose a search result' });
+            this.backToChat = header.createEl('button', { text: 'Back to Chat' });
+            this.backToChat.addEventListener('click', () => this.closeMobileResults(true));
+            this.mobileResultsBody = this.mobileResultsArea.createDiv({ cls: 'fjgduo-vault-live-results-body' });
+        }
         root.createEl('p', { cls: 'fjgduo-vault-live-intro', text: 'Ask about your notes, capture a thought, or say what to update. Clear edits save immediately.' });
         root.createEl('p', { cls: 'fjgduo-vault-live-caption', text: 'Starting voice or sending text shares your messages, the vault name, selected paths and relevant note excerpts with OpenAI. Voice also sends microphone audio; starting with text keeps the microphone off. Spoken replies are on. API charges may apply. ' + (((_a = this.plugin.settings.liveApiKey) === null || _a === void 0 ? void 0 : _a.trim()) ? 'Uses the key saved in File Focus Duo.' : 'Uses the key saved in Objective Manager for this conversation without copying or saving it in Duo.') });
         this.status = root.createEl('p', { cls: 'fjgduo-vault-live-status', text: 'Microphone off — review the details before starting', attr: { role: 'status', 'aria-live': 'polite' } });
@@ -7795,14 +7896,7 @@ class VaultVoiceModal extends obsidian.Modal {
         this.startButton.addEventListener('click', () => void this.start());
         this.muteButton = controls.createEl('button', { text: 'Mute microphone', attr: { 'aria-pressed': 'false' } });
         this.muteButton.disabled = true;
-        this.muteButton.addEventListener('click', () => {
-            var _a;
-            this.muted = !this.muted;
-            (_a = this.session) === null || _a === void 0 ? void 0 : _a.mute(this.muted);
-            this.muteButton.setText(this.muted ? 'Unmute microphone' : 'Mute microphone');
-            this.muteButton.setAttribute('aria-pressed', String(this.muted));
-            this.status.setText(this.muted ? 'Microphone muted' : 'Ready — start speaking');
-        });
+        this.muteButton.addEventListener('click', () => this.toggleMute());
         this.endButton = controls.createEl('button', { text: 'End conversation' });
         this.endButton.disabled = true;
         this.endButton.addEventListener('click', () => { var _a; return (_a = this.session) === null || _a === void 0 ? void 0 : _a.end(); });
@@ -7812,10 +7906,13 @@ class VaultVoiceModal extends obsidian.Modal {
         this.textToggle.addEventListener('click', () => {
             this.composer.hidden = !this.composer.hidden;
             this.textToggle.setAttribute('aria-expanded', String(!this.composer.hidden));
-            if (!this.composer.hidden)
+            if (!this.composer.hidden) {
                 this.textInput.focus();
+                if (obsidian.Platform.isMobile)
+                    this.scrollArea.scrollTop = this.scrollArea.scrollHeight;
+            }
         });
-        this.composer = root.createEl('form', { cls: 'fjgduo-vault-live-composer' });
+        this.composer = (obsidian.Platform.isMobile ? chat : root).createEl('form', { cls: 'fjgduo-vault-live-composer' });
         this.composer.hidden = true;
         const label = this.composer.createEl('label', { text: 'Message to your vault assistant' });
         this.textInput = label.createEl('textarea', { placeholder: 'Type the same request you would say…', attr: { 'aria-label': 'Message to your vault assistant', rows: '3', maxlength: '8000' } });
@@ -7828,7 +7925,9 @@ class VaultVoiceModal extends obsidian.Modal {
                 void this.sendText();
             }
         });
-        this.audio = root.createEl('audio', { attr: { controls: '', autoplay: '', 'aria-label': 'Assistant voice playback' } });
+        this.audio = root.createEl('audio', { attr: { controls: '', autoplay: '', playsinline: '', 'aria-label': 'Assistant voice playback' } });
+        this.audioAnchor = root.ownerDocument.createComment('voice playback position');
+        this.audio.before(this.audioAnchor);
         this.transcript = root.createDiv({ cls: 'fjgduo-vault-live-transcript', attr: { role: 'log', 'aria-label': 'Conversation', 'aria-live': 'polite' } });
         this.transcript.createEl('p', { cls: 'fjgduo-vault-live-caption', text: 'Try: “Find my notes about summer planning” or “Add this thought to my meeting note.”' });
         this.sources = root.createDiv({ cls: 'fjgduo-vault-live-sources', attr: { 'aria-label': 'Source notes' } });
@@ -7906,20 +8005,38 @@ class VaultVoiceModal extends obsidian.Modal {
                 if (!this.closed)
                     this.saved.createEl('p', { text: `${message}: ${path}` });
             }, (path) => this.addSource(path), (result, request) => {
+                var _a;
                 if (this.closed)
                     return;
                 this.coverage.setText(result.coverage);
+                if (this.mobileResults) {
+                    this.mobileResults.update(result, request);
+                    return;
+                }
                 if (this.resultsModal) {
                     this.resultsModal.update(result, request);
                     return;
                 }
                 if (result.matches.length < 2)
                     return;
-                this.resultsModal = new VaultSearchResultsModal(this.app, result, request, (path) => __awaiter(this, void 0, void 0, function* () {
+                const choose = (path) => __awaiter(this, void 0, void 0, function* () {
                     yield this.showNote(path);
                     this.addSource(path);
                     session.selectedNote(path);
-                }), (next) => __awaiter(this, void 0, void 0, function* () { yield tools.execute('search_vault', JSON.stringify(next)); }), () => { this.resultsModal = undefined; });
+                });
+                const more = (next) => __awaiter(this, void 0, void 0, function* () { yield tools.execute('search_vault', JSON.stringify(next)); });
+                if (this.mobileResultsArea && this.mobileResultsBody) {
+                    this.mobileResults = new VaultSearchResultsContent(this.mobileResultsBody, result, request, choose, more, () => this.closeMobileResults(), busy => { if (this.backToChat)
+                        this.backToChat.disabled = busy; });
+                    this.textInput.blur();
+                    this.chat.hidden = true;
+                    this.mobileResultsArea.hidden = false;
+                    if (this.presentation === 'shown')
+                        (_a = this.backToChat) === null || _a === void 0 ? void 0 : _a.focus({ preventScroll: true });
+                    this.paintRestoreButton();
+                    return;
+                }
+                this.resultsModal = new VaultSearchResultsModal(this.app, result, request, choose, more, () => { this.resultsModal = undefined; });
                 this.resultsModal.open();
             });
             session = new VaultLiveSession(this.audio, {
@@ -7947,8 +8064,160 @@ class VaultVoiceModal extends obsidian.Modal {
             }
         });
     }
-    onClose() { var _a, _b; this.closed = true; (_a = this.resultsModal) === null || _a === void 0 ? void 0 : _a.close(); (_b = this.session) === null || _b === void 0 ? void 0 : _b.end(); this.release(); }
-    shutdown() { var _a, _b; (_a = this.session) === null || _a === void 0 ? void 0 : _a.end(); (_b = this.session) === null || _b === void 0 ? void 0 : _b.dispose(); this.close(); }
+    close() {
+        var _a;
+        if (this.closed || this.presentation === 'closing' || this.presentation === 'minimizing')
+            return;
+        if (this.presentation === 'minimized') {
+            this.finish();
+            return;
+        }
+        this.presentation = 'closing';
+        (_a = this.session) === null || _a === void 0 ? void 0 : _a.end();
+        super.close();
+    }
+    onClose() {
+        var _a;
+        (_a = this.stopViewport) === null || _a === void 0 ? void 0 : _a.call(this);
+        this.stopViewport = undefined;
+        if (this.closed)
+            return;
+        if (this.presentation === 'minimizing') {
+            this.presentation = 'minimized';
+            if (this.restoreRequested) {
+                this.restoreRequested = false;
+                queueMicrotask(() => this.restoreChat());
+            }
+            else
+                this.showRestoreButton();
+            return;
+        }
+        this.finish();
+    }
+    shutdown() {
+        var _a, _b;
+        (_a = this.session) === null || _a === void 0 ? void 0 : _a.end();
+        (_b = this.session) === null || _b === void 0 ? void 0 : _b.dispose();
+        if (this.presentation === 'minimizing') {
+            this.finish();
+            return;
+        }
+        this.close();
+    }
+    finish() {
+        var _a, _b, _c, _d;
+        if (this.closed)
+            return;
+        this.closed = true;
+        (_a = this.stopViewport) === null || _a === void 0 ? void 0 : _a.call(this);
+        this.stopViewport = undefined;
+        this.removeRestoreButton();
+        (_b = this.audioDock) === null || _b === void 0 ? void 0 : _b.remove();
+        (_c = this.resultsModal) === null || _c === void 0 ? void 0 : _c.close();
+        (_d = this.session) === null || _d === void 0 ? void 0 : _d.end();
+        this.release();
+    }
+    restoreChat() {
+        var _a, _b;
+        if (this.closed || !obsidian.Platform.isMobile)
+            return;
+        if (this.presentation === 'minimizing') {
+            this.restoreRequested = true;
+            return;
+        }
+        if (this.presentation !== 'minimized')
+            return;
+        this.removeRestoreButton();
+        this.shouldRestoreSelection = true;
+        this.open();
+        this.audioAnchor.after(this.audio);
+        (_a = this.audioDock) === null || _a === void 0 ? void 0 : _a.remove();
+        this.audioDock = undefined;
+        if (this.mobileResults)
+            (_b = this.backToChat) === null || _b === void 0 ? void 0 : _b.focus({ preventScroll: true });
+        else {
+            this.titleEl.tabIndex = -1;
+            this.titleEl.focus({ preventScroll: true });
+        }
+    }
+    closeMobileResults(focus = false) {
+        var _a;
+        if (!this.mobileResultsArea || !this.mobileResults)
+            return;
+        this.mobileResults = undefined;
+        (_a = this.mobileResultsBody) === null || _a === void 0 ? void 0 : _a.empty();
+        this.mobileResultsArea.hidden = true;
+        this.chat.hidden = false;
+        this.paintRestoreButton();
+        if (focus)
+            this.textToggle.focus({ preventScroll: true });
+    }
+    minimizeMobile() {
+        if (this.closed || this.presentation !== 'shown')
+            return;
+        this.presentation = 'minimizing';
+        // Pop Obsidian's native modal keymap/history scope without ending the call.
+        // Keep the actual playback element in the same document while the modal detaches.
+        this.textInput.blur();
+        const doc = this.modalEl.ownerDocument;
+        this.audioDock = doc.createElement('div');
+        this.audioDock.hidden = true;
+        doc.body.append(this.audioDock);
+        this.audioDock.append(this.audio);
+        this.shouldRestoreSelection = false; // Do not focus the old editor or summon its on-screen keyboard.
+        super.close();
+    }
+    showRestoreButton() {
+        const doc = this.modalEl.ownerDocument;
+        const dock = this.restoreDock = doc.createElement('div');
+        dock.className = 'fjgduo-vault-live-restore-dock';
+        const button = this.restoreButton = dock.createEl('button', { cls: 'fjgduo-vault-live-restore', attr: { type: 'button' } });
+        button.setAttribute('data-ignore-swipe', '');
+        button.createSpan({ text: 'Show Chat' });
+        this.restoreStatus = button.createSpan({ cls: 'fjgduo-vault-live-restore-status' });
+        button.addEventListener('click', () => this.restoreChat());
+        const mute = this.quickMute = dock.createEl('button', { cls: 'fjgduo-vault-live-quick-mute', attr: { type: 'button', 'data-ignore-swipe': '' } });
+        mute.addEventListener('click', () => this.toggleMute());
+        this.paintRestoreButton();
+        doc.body.append(dock);
+    }
+    removeRestoreButton() {
+        var _a;
+        (_a = this.restoreDock) === null || _a === void 0 ? void 0 : _a.remove();
+        this.restoreDock = undefined;
+        this.restoreButton = undefined;
+        this.restoreStatus = undefined;
+        this.quickMute = undefined;
+    }
+    toggleMute() {
+        var _a;
+        if (!((_a = this.session) === null || _a === void 0 ? void 0 : _a.active) || this.session.isTextOnly)
+            return;
+        this.muted = !this.muted;
+        this.session.mute(this.muted);
+        this.muteButton.setText(this.muted ? 'Unmute microphone' : 'Mute microphone');
+        this.muteButton.setAttribute('aria-pressed', String(this.muted));
+        this.status.setText(this.muted ? 'Microphone muted' : 'Ready — start speaking');
+        this.paintRestoreButton();
+    }
+    paintRestoreButton() {
+        var _a, _b;
+        if (!this.restoreButton || !this.restoreStatus || !this.quickMute)
+            return;
+        const state = this.status.dataset.state;
+        const hasMic = ((_a = this.session) === null || _a === void 0 ? void 0 : _a.active) && !this.session.isTextOnly;
+        const micOn = hasMic && !this.muted;
+        const detail = micOn ? 'Mic on' : this.mobileResults ? 'Results' : state === 'connecting' ? 'Connecting'
+            : state === 'error' ? 'Disconnected' : ((_b = this.session) === null || _b === void 0 ? void 0 : _b.active) ? (this.muted ? 'Muted' : 'Mic off') : '';
+        this.restoreButton.classList.toggle('is-mic-on', Boolean(micOn));
+        this.restoreStatus.setText(detail);
+        this.restoreStatus.hidden = !detail;
+        this.quickMute.hidden = !hasMic;
+        const label = this.muted ? 'Unmute microphone' : 'Mute microphone';
+        this.quickMute.setAttribute('aria-label', label);
+        this.quickMute.title = label;
+        obsidian.setIcon(this.quickMute, this.muted ? 'mic-off' : 'mic');
+    }
     refreshSend() {
         if (!this.sendButton || this.closed)
             return;
@@ -7985,6 +8254,7 @@ class VaultVoiceModal extends obsidian.Modal {
             this.backendBusy = false;
         }
         this.refreshSend();
+        this.paintRestoreButton();
     }
     addSource(path) {
         if (this.closed || this.sourcePaths.has(path))
@@ -7995,14 +8265,52 @@ class VaultVoiceModal extends obsidian.Modal {
     }
     showNote(path) {
         return __awaiter(this, void 0, void 0, function* () {
+            const canPresent = () => !this.closed && this.presentation !== 'closing';
+            if (!canPresent())
+                throw new Error('Conversation closed.');
             const file = this.file(path);
-            const existing = this.app.workspace.getLeavesOfType('markdown').find((leaf) => { var _a; return ((_a = leaf.getViewState().state) === null || _a === void 0 ? void 0 : _a.file) === path; });
-            const leaf = existing || this.app.workspace.getLeaf('tab');
+            const workspace = this.app.workspace;
+            if (obsidian.Platform.isMobile) {
+                // Prefer the active exact document, then an existing exact root tab.
+                // Never replace an unrelated, pinned, linked or sidebar tab.
+                const opensFile = (leaf) => {
+                    var _a, _b;
+                    if (!leaf || leaf.getRoot() !== workspace.rootSplit)
+                        return false;
+                    if (leaf.view instanceof obsidian.FileView)
+                        return ((_a = leaf.view.file) === null || _a === void 0 ? void 0 : _a.path) === path;
+                    return leaf.isDeferred && ((_b = leaf.getViewState().state) === null || _b === void 0 ? void 0 : _b.file) === path;
+                };
+                let existing = opensFile(workspace.activeLeaf) ? workspace.activeLeaf : null;
+                if (!existing)
+                    workspace.iterateRootLeaves(leaf => { if (!existing && opensFile(leaf))
+                        existing = leaf; });
+                const leaf = existing || workspace.getLeaf('tab');
+                if (!existing)
+                    yield leaf.openFile(file, { active: false });
+                if (!canPresent())
+                    throw new Error('Conversation closed.');
+                yield workspace.revealLeaf(leaf);
+                if (!canPresent())
+                    throw new Error('Conversation closed.');
+                workspace.setActiveLeaf(leaf, { focus: false });
+                // Do not reveal the folder on this route: that opens the drawer in front of the note.
+                if (workspace.leftSplit instanceof obsidian.WorkspaceMobileDrawer)
+                    workspace.leftSplit.collapse();
+                if (workspace.rightSplit instanceof obsidian.WorkspaceMobileDrawer)
+                    workspace.rightSplit.collapse();
+                this.voiceSelection.note = path;
+                this.closeMobileResults();
+                this.minimizeMobile();
+                return;
+            }
+            const existing = workspace.getLeavesOfType('markdown').find((leaf) => { var _a; return ((_a = leaf.getViewState().state) === null || _a === void 0 ? void 0 : _a.file) === path; });
+            const leaf = existing || workspace.getLeaf('tab');
             yield leaf.openFile(file);
             this.voiceSelection.note = path;
             if (file.parent)
                 yield this.plugin.revealFolderPath(file.parent.path);
-            yield this.app.workspace.revealLeaf(leaf);
+            yield workspace.revealLeaf(leaf);
             this.setCompact(true);
         });
     }
@@ -8015,6 +8323,9 @@ class VaultVoiceModal extends obsidian.Modal {
         var _a;
         if (this.closed)
             return;
+        const scroller = this.scrollArea;
+        const follow = obsidian.Platform.isMobile && !this.chat.hidden && this.presentation === 'shown' &&
+            (speaker === 'You' || scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 48);
         if (!this.lastText || speaker !== this.lastSpeaker) {
             const line = this.transcript.createEl('p');
             line.createEl('strong', { text: `${speaker}: ` });
@@ -8025,6 +8336,8 @@ class VaultVoiceModal extends obsidian.Modal {
         while (this.transcript.children.length > 80)
             (_a = this.transcript.firstElementChild) === null || _a === void 0 ? void 0 : _a.remove();
         this.transcript.scrollTop = this.transcript.scrollHeight;
+        if (follow)
+            scroller.scrollTop = scroller.scrollHeight;
     }
 }
 
@@ -9070,8 +9383,10 @@ class FileTreeAlternativePlugin extends obsidian.Plugin {
         });
     }
     openVaultVoice(selection = { folder: '', note: '' }) {
-        if (this.vaultVoiceModal)
+        if (this.vaultVoiceModal) {
+            this.vaultVoiceModal.restoreChat();
             return;
+        }
         this.vaultVoiceModal = new VaultVoiceModal(this.app, this, selection, () => { this.vaultVoiceModal = null; });
         this.vaultVoiceModal.open();
     }

@@ -1,3 +1,11 @@
+## Mobile Talk to Vault — 0.1.18
+
+On mobile, **Talk to Vault** follows the space actually available to Obsidian. On narrow panes it fills the width. The composer stays at the bottom of the visible area when the keyboard appears, and the search results replace the chat body until you choose a note or go **Back to Chat**.
+
+Opening a note from the assistant or search results reveals the document and minimizes the chat without ending the conversation or changing the microphone. Tap **Show Chat** to see the same conversation, or use the adjacent mute button when the microphone is on. **Show Note** or **Minimize** returns to the document. **End conversation** and Close still stop the session. Desktop keeps its existing dialogs.
+
+Validation uses synthetic notes, audio transport and keyboard geometry. Physical iPhone and real-time playback are not yet verified.
+
 ## Type into the voice conversation — 0.1.12
 
 Open **Talk to your vault**, choose **Type a message**, and send the same request you would say. Typed turns use the existing GPT-Live conversation, configured backend model, full vault tools and spoken replies. Search, note reading, capture, explicitly requested edits and opening results retain the same safeguards and context as voice. Enter sends, Shift+Enter adds a line, and the Send button waits while backend work and tool continuations finish.
