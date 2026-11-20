@@ -4774,6 +4774,7 @@ const icons = {
     properties: 'refresh-cw', 'move-note': 'folder-input', 'auto-title': 'type', 'semantic-links': 'link',
     'copy-text': 'clipboard', 'copy-path': 'copy', subfolders: 'folders', 'file-sort': 'arrow-down-a-z',
 };
+const compactIcons = { 'clear-focus': 'focus', settings: 'settings', pin: 'pin' };
 /** A searchable home for the original toolbar actions, without taking space from file rows. */
 class AllButtonsModal extends obsidian.Modal {
     constructor(app, sections, run) {
@@ -4818,10 +4819,16 @@ function renderActionButtons(container, sections, run, options = {}) {
             button.dataset.actionId = action.id;
             const icon = document.createElement('span');
             icon.setAttribute('aria-hidden', 'true');
-            obsidian.setIcon(icon, icons[action.id] || 'circle');
+            obsidian.setIcon(icon, (options.compact && compactIcons[action.id]) || icons[action.id] || 'circle');
             const label = document.createElement('span');
             label.textContent = action.title;
-            button.append(icon, label);
+            if (options.compact) {
+                button.setAttribute('aria-label', action.title);
+                button.title = action.title;
+                button.append(icon);
+            }
+            else
+                button.append(icon, label);
             button.addEventListener('click', event => { run(action, event); });
             grid.appendChild(button);
             buttons.push(button);
@@ -4835,13 +4842,13 @@ function renderActionButtons(container, sections, run, options = {}) {
     empty.setAttribute('role', 'status');
     container.appendChild(empty);
     search.addEventListener('input', () => {
-        var _a;
+        var _a, _b;
         const query = search.value.trim().toLocaleLowerCase();
         let count = 0;
         for (const { section, buttons } of groups) {
             let visible = 0;
             for (const button of buttons) {
-                button.hidden = !((_a = button.textContent) === null || _a === void 0 ? void 0 : _a.toLocaleLowerCase().includes(query));
+                button.hidden = !((_b = (_a = button.getAttribute('aria-label')) !== null && _a !== void 0 ? _a : button.textContent) !== null && _b !== void 0 ? _b : '').toLocaleLowerCase().includes(query);
                 if (!button.hidden)
                     visible++;
             }
@@ -4857,12 +4864,16 @@ function ShortcutPanel({ sections, run, context }) {
     const [searchOpen, setSearchOpen] = reactExports.useState(false);
     const wasSearchOpen = reactExports.useRef(false);
     reactExports.useEffect(() => {
+        var _a;
         const node = host.current;
         if (!node)
             return;
         const old = node.querySelector('input');
         const query = searchOpen ? (old === null || old === void 0 ? void 0 : old.value) || '' : '';
         const focused = document.activeElement === old;
+        const selection = focused && old ? [old.selectionStart, old.selectionEnd, old.selectionDirection] : undefined;
+        const activeButton = node.contains(document.activeElement) && document.activeElement instanceof HTMLButtonElement
+            ? document.activeElement.dataset.actionId : undefined;
         node.replaceChildren();
         renderActionButtons(node, sections(), run, { compact: true });
         const search = node.querySelector('input');
@@ -4870,8 +4881,15 @@ function ShortcutPanel({ sections, run, context }) {
             search.hidden = !searchOpen;
             search.value = query;
             search.dispatchEvent(new Event('input'));
-            if (searchOpen && (focused || !wasSearchOpen.current))
-                search.focus();
+            if (searchOpen && (focused || !wasSearchOpen.current)) {
+                search.focus({ preventScroll: focused });
+                if (selection)
+                    search.setSelectionRange(...selection);
+            }
+            else if (activeButton) {
+                (_a = Array.from(node.querySelectorAll('button[data-action-id]:not([hidden])'))
+                    .find(button => button.dataset.actionId === activeButton)) === null || _a === void 0 ? void 0 : _a.focus({ preventScroll: true });
+            }
         }
         wasSearchOpen.current = searchOpen;
     });

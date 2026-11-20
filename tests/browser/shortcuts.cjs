@@ -2,7 +2,7 @@ const {chromium}=require('playwright-core');
 const assert=require('assert/strict');
 (async()=>{
  const browser=await chromium.launch({executablePath:process.env.DUO_BROWSER_BIN || '/Volumes/Extreme SSD/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',headless:true});
- for(const [width,height] of [[264,403],[390,448],[382,567],[867,558],[567,382]]){
+ for(const [width,height] of [[264,403],[390,448],[382,567],[867,558],[567,382],[1100,640]]){
   const page=await browser.newPage({viewport:{width,height},hasTouch:true});
   page.setDefaultTimeout(8000);
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
@@ -11,14 +11,30 @@ const assert=require('assert/strict');
   const panel=page.getByRole('region',{name:'File Focus shortcuts'});
   await panel.waitFor();
   for(const id of ['home','brief','tasks','agenda','voice','dashboard','new-folder','folder-tags','omnisearch','follow','folder-sort','folder-path','collapse','expand','search','new-note','delete-note','quick-format','properties','move-note','auto-title','semantic-links','copy-text','copy-path','file-sort','back','folders','root','recent','bookmarks']) assert.equal(await panel.locator(`[data-action-id="${id}"]`).count(),1,id);
-  assert.ok(await panel.locator('button').evaluateAll(bs=>bs.every(b=>b.getBoundingClientRect().height>=44 && b.getBoundingClientRect().width>=44)));
+  assert.ok(await panel.locator('button').evaluateAll(bs=>bs.every(b=>b.getBoundingClientRect().height===44 && b.getBoundingClientRect().width===44)));
+  assert.deepEqual(await panel.getByRole('heading').allTextContents(),['Navigation','Folder buttons','Pane','Note buttons']);
+  const allActions=await panel.locator('[data-action-id]').evaluateAll(buttons=>buttons.map(b=>({
+   label:b.getAttribute('aria-label'),title:b.title,text:b.textContent.trim(),
+   icon:b.querySelector('[aria-hidden="true"]')?.dataset.icon,
+   bg:getComputedStyle(b).backgroundColor
+  })));
+  assert.ok(allActions.every(a=>a.label&&a.title===a.label&&!a.text&&a.icon&&a.bg==='rgba(0, 0, 0, 0)'),'icon-only targets retain their name and tooltip');
+  const nav=panel.locator('section').filter({has:page.getByRole('heading',{name:'Navigation',exact:true})});
+  assert.equal(await nav.locator('button').evaluateAll(bs=>bs.filter(b=>b.offsetTop===bs[0].offsetTop).length),Math.floor((width-16)/44)>=7?7:Math.floor((width-16)/44),'navigation fills row before wrapping');
+  const folderGroup=panel.locator('section').filter({has:page.getByRole('heading',{name:'Folder buttons',exact:true})});
+  assert.equal(await folderGroup.getByRole('button',{name:'Open Vault Control Center',exact:true}).count(),1);
   assert.ok(await page.locator('.duo-main-scroll').evaluate(el=>el.scrollWidth<=el.clientWidth+1),'horizontal overflow');
   assert.equal(await panel.locator('[data-action-id="folder-navigator"]').count(),0);
   await panel.getByRole('button',{name:'Find a button',exact:true}).tap();
   await panel.getByRole('searchbox').fill('omnisearch');
+  assert.deepEqual(await panel.getByRole('heading').allTextContents(),['Folder buttons']);
   assert.equal(await panel.locator('[data-action-id]:visible').count(),1);
-  await panel.locator('[data-action-id]:visible').click();
+  const result=panel.getByRole('button',{name:'Open Omnisearch',exact:true});
+  await panel.getByRole('searchbox').press('Tab');
+  assert.ok(await result.evaluate(b=>document.activeElement===b && getComputedStyle(b).outlineStyle==='solid'),'visible keyboard focus');
+  await result.press('Enter');
   assert.ok((await page.evaluate(()=>window.notices)).some(n=>n.includes('not available')));
+  await page.waitForFunction(()=>document.activeElement?.getAttribute('data-action-id')==='omnisearch');
   for(let i=0;i<3;i++){
    await page.getByRole('button',{name:'Folders',exact:true}).click();
    assert.equal(await panel.count(),0);
@@ -38,7 +54,7 @@ const assert=require('assert/strict');
   assert.notEqual(await toggle.getAttribute('aria-expanded'),before,'folder expansion target padding');
 
   assert.deepEqual(errors,[]);
-  console.log(`PASS ${width}x${height}: all actions, 44px targets, no horizontal overflow, search/error notice, repeated switch`);
+  console.log(`PASS ${width}x${height}: grouped 44px icon-only wrapping rows, accessible names, no horizontal overflow, search/error notice, repeated switch`);
   await page.close();
  }
  await browser.close();

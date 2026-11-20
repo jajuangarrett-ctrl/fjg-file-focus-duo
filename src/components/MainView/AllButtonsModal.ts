@@ -11,6 +11,8 @@ const icons: Record<string,string> = {
     'copy-text':'clipboard', 'copy-path':'copy', subfolders:'folders', 'file-sort':'arrow-down-a-z',
 };
 
+const compactIcons: Record<string,string> = { 'clear-focus':'focus', settings:'settings', pin:'pin' };
+
 /** A searchable home for the original toolbar actions, without taking space from file rows. */
 export class AllButtonsModal extends Modal {
     constructor(app:App, private sections:[string,DuoAction[]][], private run:(action:DuoAction,event?:MouseEvent)=>void) {
@@ -43,9 +45,13 @@ export function renderActionButtons(container:HTMLElement, sections:[string,DuoA
             const buttons:HTMLButtonElement[]=[];
             for (const action of actions.filter(a=>a.visible!==false)) {
                 const button=document.createElement('button'); button.dataset.ignoreSwipe='true'; button.type='button'; button.dataset.actionId=action.id;
-                const icon=document.createElement('span'); icon.setAttribute('aria-hidden','true'); setIcon(icon,icons[action.id] || 'circle');
+                const icon=document.createElement('span'); icon.setAttribute('aria-hidden','true'); setIcon(icon,(options.compact && compactIcons[action.id]) || icons[action.id] || 'circle');
                 const label=document.createElement('span'); label.textContent=action.title;
-                button.append(icon,label);
+                if (options.compact) {
+                    button.setAttribute('aria-label', action.title);
+                    button.title=action.title;
+                    button.append(icon);
+                } else button.append(icon,label);
                 button.addEventListener('click',event=>{run(action,event);});
                 grid.appendChild(button); buttons.push(button);
             }
@@ -56,7 +62,7 @@ export function renderActionButtons(container:HTMLElement, sections:[string,DuoA
             const query=search.value.trim().toLocaleLowerCase(); let count=0;
             for (const {section,buttons} of groups) {
                 let visible=0;
-                for (const button of buttons) {button.hidden=!button.textContent?.toLocaleLowerCase().includes(query); if(!button.hidden)visible++;}
+                for (const button of buttons) {button.hidden=!(button.getAttribute('aria-label') ?? button.textContent ?? '').toLocaleLowerCase().includes(query); if(!button.hidden)visible++;}
                 section.hidden=visible===0;count+=visible;
             }
             empty.hidden=count!==0;

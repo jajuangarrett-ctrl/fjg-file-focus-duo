@@ -13,12 +13,21 @@ export function ShortcutPanel({sections, run, context}: {sections:()=>[string,Du
         const old=node.querySelector('input');
         const query=searchOpen ? old?.value || '' : '';
         const focused=document.activeElement===old;
+        const selection=focused && old ? [old.selectionStart,old.selectionEnd,old.selectionDirection] as const : undefined;
+        const activeButton=node.contains(document.activeElement) && document.activeElement instanceof HTMLButtonElement
+            ? document.activeElement.dataset.actionId : undefined;
         node.replaceChildren();
         renderActionButtons(node,sections(),run,{compact:true});
         const search=node.querySelector('input');
         if(search){
             search.hidden=!searchOpen;search.value=query;search.dispatchEvent(new Event('input'));
-            if(searchOpen && (focused || !wasSearchOpen.current))search.focus();
+            if(searchOpen && (focused || !wasSearchOpen.current)){
+                search.focus({preventScroll:focused});
+                if(selection)search.setSelectionRange(...selection);
+            } else if(activeButton) {
+                Array.from(node.querySelectorAll<HTMLButtonElement>('button[data-action-id]:not([hidden])'))
+                    .find(button=>button.dataset.actionId===activeButton)?.focus({preventScroll:true});
+            }
         }
         wasSearchOpen.current=searchOpen;
     });
