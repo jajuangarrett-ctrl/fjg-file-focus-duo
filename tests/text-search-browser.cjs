@@ -9,7 +9,16 @@ const { chromium } = require('playwright-core');
 export class TFile { constructor(path) { this.path=path; this.stat={size:40}; this.parent={path:path.split('/').slice(0,-1).join('/')}; } }
 export const Platform={isMobile:true};
 export class FileView { constructor(file){this.file=file;} }
-export class WorkspaceMobileDrawer { collapse(){window.drawerCollapses++;} }
+export class WorkspaceMobileDrawer {
+ collapse(){
+  window.drawerCollapses++;
+  const root=document.querySelector('.workspace-split.mod-root');
+  if(root.style.transform && !window.drawerAnimation){
+    window.drawerAnimation=true;
+    setTimeout(()=>{root.style.transform='';window.drawerAnimation=false;},80);
+  }
+ }
+}
 export const setIcon=(el,icon)=>{el.dataset.icon=icon;};
 export const requestUrl=async options=>{window.apiCalls++;window.requestBody=JSON.parse(options.body);return {status:201,json:{transport:{sdp:'fixture-answer'}}};};
 export class Notice { constructor(text){window.notices.push(text);} }
@@ -73,9 +82,10 @@ const workspace={rootSplit,containerEl:document.querySelector('.workspace'),acti
     openFile:async f=>{if(window.failNote===f.path)throw Error('Synthetic file open failure');leaf.view.file=f;window.noteOpens.push(f.path);}};leaves.push(leaf);return leaf;},
   revealLeaf:async leaf=>{const note=document.querySelector('#note-title');note.textContent=leaf.view.file.path;window.opened.push(leaf.view.file.path);},
   setActiveLeaf:(leaf,{focus})=>{workspace.activeLeaf=leaf;if(focus)throw Error('Should not summon note keyboard');}};
+window.workspaceFixture=workspace;
 const app={vault:{getName:()=>'Synthetic vault',getFiles:()=>files,getAbstractFileByPath:path=>files.find(f=>f.path===path),read:async f=>{window.reads++;return f.path.includes('Other')?'quiet winter':'summer program';}},workspace};
 const plugin={settings:{liveApiKey:'',liveBackendModel:'fixture'},resolveVoiceApiKey:async()=>{window.startOrder.push('key-read');window.keyCalls++;await new Promise(r=>setTimeout(r,40));return 'fixture-key';},revealFolderPath:async()=>{window.folderReveals++;}};
-window.openVoice=()=>{window.voice=new VaultVoiceModal(app,plugin,{folder:'Unrelated',note:''},()=>window.releases++);window.voice.open();};
+window.openVoice=()=>{window.voice=new VaultVoiceModal(app,plugin,{folder:'Unrelated',note:''},()=>window.releases++);window.voice.openResponsive();};
 window.tool=(name,args)=>{const d='inject',id='inject'+(++eventId),ch=window.peer.channel;ch.event({type:'response.event',delegation_id:d,event:{type:'response.created',response:{id}}});
 ch.event({type:'response.event',delegation_id:d,event:{type:'response.output_item.done',item:{type:'function_call',call_id:id,name,arguments:JSON.stringify(args)}}});
 ch.event({type:'response.event',delegation_id:d,event:{type:'response.completed',response:{id}}});return id;};
@@ -133,7 +143,7 @@ window.openVoice();`;
     assert.match(await page.locator('.fjgduo-vault-live-status').innerText(),/Ready.*Microphone off/);
     assert.deepEqual(await page.evaluate(()=>({api:window.apiCalls,mic:window.micCalls,keys:window.keyCalls})),{api:1,mic:0,keys:1});
     const protocol=await page.evaluate(()=>window.peer.channel.sent.map(e=>e.type));assert.ok(protocol.includes('response.item.create'));assert.equal(protocol.filter(t=>t==='response.create').length,2);
-    for(const width of [320,390,768,1200]){
+    for(const width of [320,390,670]){
       await page.setViewportSize({width,height:844});
       await page.waitForFunction(width=>parseFloat(document.querySelector('.modal-container').style.getPropertyValue('--fjgduo-voice-width'))===width,width);
       const bounds=await page.locator('.fjgduo-vault-live-modal').evaluate(el=>({overflow:el.scrollWidth>el.clientWidth+1,left:el.getBoundingClientRect().left,right:el.getBoundingClientRect().right,textarea:el.querySelector('textarea').getBoundingClientRect().height,buttons:[...el.querySelectorAll('button')].filter(b=>b.getBoundingClientRect().height).map(n=>n.getBoundingClientRect().height)}));
@@ -258,6 +268,69 @@ window.openVoice();`;
     await page.evaluate(()=>window.playbackContext.close());
     await page.keyboard.press('Escape');await page.locator('.modal').waitFor({state:'detached'});
     assert.equal(await page.locator('.fjgduo-vault-live-split-root').count(),0);
+    // Launch wide with an active native note: no modal or API request is required
+    // before a result, and selecting the first result keeps the same dock.
+    await page.setViewportSize({width:844,height:390});
+    const beforeWide=await page.evaluate(()=>({api:window.apiCalls,keys:window.keyCalls,mic:window.micCalls}));
+    await page.evaluate(()=>window.openVoice());
+    await split.waitFor();
+    assert.equal(await page.locator('.modal-container').count(),0);
+    assert.equal(await page.locator('#note-title').innerText(),'Notes/Summer 03.md');
+    assert.deepEqual(await page.evaluate(()=>({api:window.apiCalls,keys:window.keyCalls,mic:window.micCalls})),beforeWide);
+    await noteMenu('Backlinks');
+    await centerTap(split.getByRole('button',{name:'Type a message',exact:true}));
+    await input.fill('Find summer at wide launch');await centerTap(send);
+    await centerTap(page.getByRole('link',{name:'Open Notes/Summer 04.md',exact:true}));
+    assert.equal(await page.locator('#note-title').innerText(),'Notes/Summer 04.md');
+    assert.equal(await split.count(),1);
+    assert.equal(await page.locator('.modal-container').count(),0);
+    await centerTap(split.getByRole('button',{name:'Close conversation'}));
+    assert.equal(await split.count(),0);
+    assert.equal(await page.locator('.workspace-split').evaluate(r=>r.style.getPropertyValue('--fjgduo-voice-pane-width')),'');
+
+    // An unpinned sliding drawer translates the root; collapse settles without
+    // a root size change or a viewport resize. The wide lane still opens.
+    await page.evaluate(()=>{
+      document.querySelector('.workspace-split').style.transform='translateX(320px)';
+      window.openVoice();
+    });
+    await split.waitFor();
+    assert.equal(await page.locator('.workspace-split').evaluate(r=>r.style.transform),'');
+    assert.equal(await page.locator('.modal-container').count(),0);
+    assert.equal(await page.locator('#note-title').innerText(),'Notes/Summer 04.md');
+    await centerTap(split.getByRole('button',{name:'Close conversation'}));
+
+    // Wide viewport alone is insufficient: a layout-consuming pinned drawer
+    // can make the real workspace too narrow. Launch preserves that geometry.
+    await page.setViewportSize({width:1024,height:650});
+    const beforeNarrow=await page.evaluate(()=>{
+      const workspace=document.querySelector('.workspace-split');
+      workspace.style.width='674px';workspace.style.marginLeft='350px';
+      const collapses=window.drawerCollapses;window.openVoice();return collapses;
+    });
+    await page.locator('.fjgduo-vault-live-modal').waitFor();
+    assert.equal(await split.count(),0);
+    assert.equal(await page.evaluate(()=>window.drawerCollapses),beforeNarrow);
+    assert.equal(await page.locator('.workspace-split').evaluate(r=>r.offsetWidth),674);
+    await page.getByRole('button',{name:'Show Note',exact:true}).click();await restore.waitFor();
+    await noteMenu('Reading view');
+    await centerTap(restore);await page.locator('.fjgduo-vault-live-modal').waitFor();
+    await page.keyboard.press('Escape');await page.locator('.modal').waitFor({state:'detached'});
+
+    // A clean wide launch can also use the existing native blank tab.
+    await page.setViewportSize({width:1200,height:800});
+    await page.evaluate(()=>{
+      const workspace=document.querySelector('.workspace-split');
+      workspace.style.removeProperty('width');workspace.style.removeProperty('margin-left');
+      window.workspaceFixture.activeLeaf=null;document.querySelector('#note-title').textContent='Fixture empty tab';
+      window.openVoice();
+    });
+    await split.waitFor();
+    assert.equal(await page.locator('#note-title').innerText(),'Fixture empty tab');
+    assert.equal(await split.getByRole('button',{name:'Hide Chat',exact:true}).count(),1);
+    assert.equal(await page.locator('.modal-container').count(),0);
+    await centerTap(split.getByRole('button',{name:'Close conversation'}));
+
     // Desktop still uses its existing modal and separate result chooser.
     await page.setViewportSize({width:1200,height:800});
     await page.evaluate(()=>{window.mobile.isMobile=false;window.openVoice();});
@@ -270,6 +343,6 @@ window.openVoice();`;
     assert.equal(await page.evaluate(()=>window.folderReveals),1);
     await page.keyboard.press('Escape');await page.locator('.modal').waitFor({state:'detached'});
     assert.deepEqual(errors,[]);
-    console.log('PASS: inline typed composer, no requests on open/toggle/empty submit, exact AI tool continuation, spoken transcript in same conversation, follow-up, keyboard input, busy duplicate block, mic opt-in only, end/restart, 320/390/768/1200px layout and 44px buttons. Also passed: visual viewport keyboard, mobile inline search cancel and failed selection, note handoff to the full canvas, retained playback/connection, direct tool open and tab reuse, one-tap mute, restore, and desktop result modal. Typed null/omitted delegation IDs, tap-before-key startup, compact and wide keyboard hit testing, wide native note/menu hit testing, and fold/draft continuity passed. Synthetic API/audio only.');
+    console.log('PASS: inline typed composer, no requests on open/toggle/empty submit, exact AI tool continuation, spoken transcript in same conversation, follow-up, keyboard input, busy duplicate block, mic opt-in only, end/restart, 320/390/670/844/1024/1200px layout and 44px buttons. Also passed: visual viewport keyboard, mobile inline search cancel and failed selection, note handoff to the full canvas, retained playback/connection, direct tool open and tab reuse, one-tap mute, restore, and desktop result modal. Typed null/omitted delegation IDs, tap-before-key startup, compact and wide keyboard hit testing, wide native note/menu hit testing, fold/draft continuity, initial active/empty wide launch, first selection while docked, sliding drawer settling and pinned narrower-root fallback passed. Synthetic API/audio only.');
   } finally { await browser.close(); }
 })().catch(error => {console.error(error);process.exitCode=1;});

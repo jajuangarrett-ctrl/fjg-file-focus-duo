@@ -7855,6 +7855,14 @@ function followVoiceViewport(host, onWidth, reserveNavbar = false) {
         frame = win.requestAnimationFrame(measure); };
     const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(schedule);
     observer === null || observer === void 0 ? void 0 : observer.observe(host);
+    // A sliding drawer moves the workspace with a transform, which does not
+    // resize its border box. Watch that host only and take the final animation sample.
+    const motion = reserveNavbar && typeof MutationObserver !== 'undefined' ? new MutationObserver(schedule) : undefined;
+    motion === null || motion === void 0 ? void 0 : motion.observe(host, { attributes: true, attributeFilter: ['style'] });
+    if (reserveNavbar) {
+        host.addEventListener('transitionend', schedule);
+        host.addEventListener('animationend', schedule);
+    }
     win.addEventListener('resize', schedule);
     visual === null || visual === void 0 ? void 0 : visual.addEventListener('resize', schedule);
     visual === null || visual === void 0 ? void 0 : visual.addEventListener('scroll', schedule);
@@ -7863,6 +7871,11 @@ function followVoiceViewport(host, onWidth, reserveNavbar = false) {
         if (frame)
             win.cancelAnimationFrame(frame);
         observer === null || observer === void 0 ? void 0 : observer.disconnect();
+        motion === null || motion === void 0 ? void 0 : motion.disconnect();
+        if (reserveNavbar) {
+            host.removeEventListener('transitionend', schedule);
+            host.removeEventListener('animationend', schedule);
+        }
         win.removeEventListener('resize', schedule);
         visual === null || visual === void 0 ? void 0 : visual.removeEventListener('resize', schedule);
         visual === null || visual === void 0 ? void 0 : visual.removeEventListener('scroll', schedule);
@@ -7879,7 +7892,6 @@ class VaultVoiceModal extends obsidian.Modal {
         this.initialized = false;
         this.restoreRequested = false;
         this.workspaceWidth = 0;
-        this.lastOpenedNote = '';
         this.manualNoteOnly = false;
         this.pendingSplit = false;
         this.muted = false;
@@ -7893,13 +7905,30 @@ class VaultVoiceModal extends obsidian.Modal {
         this.voiceSelection = selection;
         this.release = release;
     }
+    openResponsive() {
+        if (this.closed || this.initialized)
+            return;
+        this.initializeContent();
+        if (obsidian.Platform.isMobile) {
+            // Prefer attaching the chat locally, with no modal/backdrop, at launch.
+            // This works alongside any existing native note or an empty workspace.
+            this.presentation = 'minimized';
+            this.watchWorkspace(true);
+            if (this.splitPanel)
+                return;
+        }
+        this.open();
+    }
+    initializeContent() {
+        if (this.initialized)
+            return;
+        this.initialized = true;
+        this.buildContent();
+    }
     onOpen() {
         var _a;
         this.presentation = 'shown';
-        if (!this.initialized) {
-            this.initialized = true;
-            this.buildContent();
-        }
+        this.initializeContent();
         if (obsidian.Platform.isMobile) {
             this.containerEl.classList.add('fjgduo-vault-live-mobile-host');
             (_a = this.minimizeButton) === null || _a === void 0 ? void 0 : _a.setText(this.app.workspace.getActiveFile() ? 'Show Note' : 'Minimize');
@@ -8199,7 +8228,7 @@ class VaultVoiceModal extends obsidian.Modal {
         if (this.presentation !== 'minimized')
             return;
         this.manualNoteOnly = false;
-        if (this.lastOpenedNote && this.isWideWorkspace()) {
+        if (this.isWideWorkspace()) {
             this.mountSplit();
             return;
         }
@@ -8231,18 +8260,27 @@ class VaultVoiceModal extends obsidian.Modal {
         if (focus)
             this.textToggle.focus({ preventScroll: true });
     }
-    watchWorkspace() {
-        var _a;
+    watchWorkspace(collapseOverlayDrawers = false) {
+        var _a, _b, _c, _d;
         if (this.stopWorkspaceViewport)
             return;
-        const root = (_a = this.app.workspace.containerEl) === null || _a === void 0 ? void 0 : _a.querySelector('.workspace-split.mod-root');
+        const workspaceEl = this.app.workspace.containerEl;
+        const root = (_a = workspaceEl === null || workspaceEl === void 0 ? void 0 : workspaceEl.querySelector(':scope > .workspace-split.mod-root')) !== null && _a !== void 0 ? _a : workspaceEl === null || workspaceEl === void 0 ? void 0 : workspaceEl.querySelector('.workspace-split.mod-root');
         if (!(root === null || root === void 0 ? void 0 : root.isConnected) || root.ownerDocument !== this.modalEl.ownerDocument)
             return;
         this.workspaceHost = root;
+        // Translation caused by an unpinned sliding drawer leaves layout width unchanged,
+        // but can temporarily clip the root. Use true layout width only to decide whether
+        // to dismiss the overlay; docking below still requires enough visible space.
+        const win = root.ownerDocument.defaultView;
+        const potentialWidth = Math.min(root.clientWidth, (_d = (_c = (_b = win === null || win === void 0 ? void 0 : win.visualViewport) === null || _b === void 0 ? void 0 : _b.width) !== null && _c !== void 0 ? _c : win === null || win === void 0 ? void 0 : win.innerWidth) !== null && _d !== void 0 ? _d : 0);
+        if (collapseOverlayDrawers && canSplitVoice(potentialWidth, false) && !root.querySelector(':scope > .fjg-live-lane')) {
+            this.collapseNativeDrawers();
+        }
         this.stopWorkspaceViewport = followVoiceViewport(root, width => {
             var _a;
             this.workspaceWidth = width;
-            if (this.closed || !this.lastOpenedNote)
+            if (this.closed)
                 return;
             if (this.isWideWorkspace())
                 this.sizeSplit();
@@ -8255,10 +8293,22 @@ class VaultVoiceModal extends obsidian.Modal {
             else if (!this.manualNoteOnly && this.isWideWorkspace()) {
                 if (this.presentation === 'minimized')
                     this.mountSplit();
-                else if (this.presentation === 'shown')
-                    this.minimizeMobile(true);
+                else if (this.presentation === 'shown') {
+                    // The initial measurement can run inside Obsidian's native Modal.open().
+                    queueMicrotask(() => {
+                        if (!this.manualNoteOnly && this.isWideWorkspace())
+                            this.minimizeMobile(true);
+                    });
+                }
             }
         }, true);
+    }
+    collapseNativeDrawers() {
+        const { leftSplit, rightSplit } = this.app.workspace;
+        if (leftSplit instanceof obsidian.WorkspaceMobileDrawer && !leftSplit.collapsed)
+            leftSplit.collapse();
+        if (rightSplit instanceof obsidian.WorkspaceMobileDrawer && !rightSplit.collapsed)
+            rightSplit.collapse();
     }
     isWideWorkspace() {
         const host = this.workspaceHost;
@@ -8280,7 +8330,10 @@ class VaultVoiceModal extends obsidian.Modal {
         const header = pane.createDiv({ cls: 'fjgduo-vault-live-split-header' });
         header.createEl('h2', { cls: 'fjgduo-vault-live-split-title', text: 'Talk to your vault' });
         const actions = header.createDiv({ cls: 'fjgduo-vault-live-split-actions' });
-        const note = actions.createEl('button', { text: 'Show Note', attr: { type: 'button', 'data-ignore-swipe': '' } });
+        const note = actions.createEl('button', {
+            text: this.app.workspace.getActiveFile() ? 'Show Note' : 'Hide Chat',
+            cls: 'fjgduo-vault-live-note-only', attr: { type: 'button', 'data-ignore-swipe': '' }
+        });
         note.addEventListener('click', () => this.showNoteOnly());
         const close = actions.createEl('button', { attr: { type: 'button', 'aria-label': 'Close conversation', 'data-ignore-swipe': '' } });
         obsidian.setIcon(close, 'x');
@@ -8451,6 +8504,7 @@ class VaultVoiceModal extends obsidian.Modal {
         button.addEventListener('click', () => void this.showNote(path).then(() => { var _a; return (_a = this.session) === null || _a === void 0 ? void 0 : _a.selectedNote(path); }).catch(() => this.status.setText('The source note could not be opened.')));
     }
     showNote(path) {
+        var _a, _b;
         return __awaiter(this, void 0, void 0, function* () {
             const canPresent = () => !this.closed && this.presentation !== 'closing';
             if (!canPresent())
@@ -8482,12 +8536,9 @@ class VaultVoiceModal extends obsidian.Modal {
                     throw new Error('Conversation closed.');
                 workspace.setActiveLeaf(leaf, { focus: false });
                 // Do not reveal the folder on this route: that opens the drawer in front of the note.
-                if (workspace.leftSplit instanceof obsidian.WorkspaceMobileDrawer)
-                    workspace.leftSplit.collapse();
-                if (workspace.rightSplit instanceof obsidian.WorkspaceMobileDrawer)
-                    workspace.rightSplit.collapse();
+                this.collapseNativeDrawers();
                 this.voiceSelection.note = path;
-                this.lastOpenedNote = path;
+                (_b = (_a = this.splitPanel) === null || _a === void 0 ? void 0 : _a.querySelector('.fjgduo-vault-live-note-only')) === null || _b === void 0 ? void 0 : _b.setText('Show Note');
                 this.closeMobileResults();
                 if (this.presentation === 'shown')
                     this.minimizeMobile(this.isWideWorkspace());
@@ -9581,7 +9632,7 @@ class FileTreeAlternativePlugin extends obsidian.Plugin {
             return;
         }
         this.vaultVoiceModal = new VaultVoiceModal(this.app, this, selection, () => { this.vaultVoiceModal = null; });
-        this.vaultVoiceModal.open();
+        this.vaultVoiceModal.openResponsive();
     }
     resolveVoiceApiKey() {
         var _a;

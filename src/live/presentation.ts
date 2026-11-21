@@ -37,6 +37,14 @@ export function followVoiceViewport(host: HTMLElement, onWidth: (width: number) 
   const schedule = () => { if (!frame) frame = win.requestAnimationFrame(measure); };
   const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(schedule);
   observer?.observe(host);
+  // A sliding drawer moves the workspace with a transform, which does not
+  // resize its border box. Watch that host only and take the final animation sample.
+  const motion = reserveNavbar && typeof MutationObserver !== 'undefined' ? new MutationObserver(schedule) : undefined;
+  motion?.observe(host, { attributes: true, attributeFilter: ['style'] });
+  if (reserveNavbar) {
+    host.addEventListener('transitionend', schedule);
+    host.addEventListener('animationend', schedule);
+  }
   win.addEventListener('resize', schedule);
   visual?.addEventListener('resize', schedule);
   visual?.addEventListener('scroll', schedule);
@@ -44,6 +52,11 @@ export function followVoiceViewport(host: HTMLElement, onWidth: (width: number) 
   return () => {
     if (frame) win.cancelAnimationFrame(frame);
     observer?.disconnect();
+    motion?.disconnect();
+    if (reserveNavbar) {
+      host.removeEventListener('transitionend', schedule);
+      host.removeEventListener('animationend', schedule);
+    }
     win.removeEventListener('resize', schedule);
     visual?.removeEventListener('resize', schedule);
     visual?.removeEventListener('scroll', schedule);

@@ -16,7 +16,6 @@ export class VaultVoiceModal extends Modal {
   private workspaceHost?: HTMLElement;
   private workspaceWidth = 0;
   private splitPanel?: HTMLElement;
-  private lastOpenedNote = '';
   private manualNoteOnly = false;
   private pendingSplit = false;
   private restoreDock?: HTMLElement;
@@ -63,9 +62,26 @@ export class VaultVoiceModal extends Modal {
   constructor(app: App, plugin: FileTreeAlternativePlugin, selection: { folder: string; note: string }, release: () => void) {
     super(app); this.plugin = plugin; this.voiceSelection = selection; this.release = release;
   }
+  openResponsive(): void {
+    if (this.closed || this.initialized) return;
+    this.initializeContent();
+    if (Platform.isMobile) {
+      // Prefer attaching the chat locally, with no modal/backdrop, at launch.
+      // This works alongside any existing native note or an empty workspace.
+      this.presentation = 'minimized';
+      this.watchWorkspace(true);
+      if (this.splitPanel) return;
+    }
+    this.open();
+  }
+  private initializeContent(): void {
+    if (this.initialized) return;
+    this.initialized = true;
+    this.buildContent();
+  }
   onOpen(): void {
     this.presentation = 'shown';
-    if (!this.initialized) { this.initialized = true; this.buildContent(); }
+    this.initializeContent();
     if (Platform.isMobile) {
       this.containerEl.classList.add('fjgduo-vault-live-mobile-host');
       this.minimizeButton?.setText(this.app.workspace.getActiveFile() ? 'Show Note' : 'Minimize');
@@ -275,7 +291,7 @@ export class VaultVoiceModal extends Modal {
     if (this.presentation === 'split') { this.focusMobileChat(); return; }
     if (this.presentation !== 'minimized') return;
     this.manualNoteOnly = false;
-    if (this.lastOpenedNote && this.isWideWorkspace()) { this.mountSplit(); return; }
+    if (this.isWideWorkspace()) { this.mountSplit(); return; }
     this.removeRestoreButton();
     this.shouldRestoreSelection = true;
     this.open();
@@ -298,14 +314,26 @@ export class VaultVoiceModal extends Modal {
     this.paintRestoreButton();
     if (focus) this.textToggle.focus({ preventScroll: true });
   }
-  private watchWorkspace(): void {
+  private watchWorkspace(collapseOverlayDrawers = false): void {
     if (this.stopWorkspaceViewport) return;
-    const root = this.app.workspace.containerEl?.querySelector<HTMLElement>('.workspace-split.mod-root');
+    const workspaceEl = this.app.workspace.containerEl;
+    const root = workspaceEl?.querySelector<HTMLElement>(':scope > .workspace-split.mod-root') ??
+      workspaceEl?.querySelector<HTMLElement>('.workspace-split.mod-root');
     if (!root?.isConnected || root.ownerDocument !== this.modalEl.ownerDocument) return;
     this.workspaceHost = root;
+
+    // Translation caused by an unpinned sliding drawer leaves layout width unchanged,
+    // but can temporarily clip the root. Use true layout width only to decide whether
+    // to dismiss the overlay; docking below still requires enough visible space.
+    const win = root.ownerDocument.defaultView;
+    const potentialWidth = Math.min(root.clientWidth, win?.visualViewport?.width ?? win?.innerWidth ?? 0);
+    if (collapseOverlayDrawers && canSplitVoice(potentialWidth, false) && !root.querySelector(':scope > .fjg-live-lane')) {
+      this.collapseNativeDrawers();
+    }
+
     this.stopWorkspaceViewport = followVoiceViewport(root, width => {
       this.workspaceWidth = width;
-      if (this.closed || !this.lastOpenedNote) return;
+      if (this.closed) return;
       if (this.isWideWorkspace()) this.sizeSplit();
       if (this.presentation === 'split' && !this.isWideWorkspace()) {
         const wasChatFocused = !!this.splitPanel?.contains(root.ownerDocument.activeElement);
@@ -313,9 +341,19 @@ export class VaultVoiceModal extends Modal {
         if (wasChatFocused) this.restoreChat();
       } else if (!this.manualNoteOnly && this.isWideWorkspace()) {
         if (this.presentation === 'minimized') this.mountSplit();
-        else if (this.presentation === 'shown') this.minimizeMobile(true);
+        else if (this.presentation === 'shown') {
+          // The initial measurement can run inside Obsidian's native Modal.open().
+          queueMicrotask(() => {
+            if (!this.manualNoteOnly && this.isWideWorkspace()) this.minimizeMobile(true);
+          });
+        }
       }
     }, true);
+  }
+  private collapseNativeDrawers(): void {
+    const { leftSplit, rightSplit } = this.app.workspace;
+    if (leftSplit instanceof WorkspaceMobileDrawer && !leftSplit.collapsed) leftSplit.collapse();
+    if (rightSplit instanceof WorkspaceMobileDrawer && !rightSplit.collapsed) rightSplit.collapse();
   }
   private isWideWorkspace(): boolean {
     const host = this.workspaceHost;
@@ -336,7 +374,10 @@ export class VaultVoiceModal extends Modal {
     const header = pane.createDiv({ cls: 'fjgduo-vault-live-split-header' });
     header.createEl('h2', { cls: 'fjgduo-vault-live-split-title', text: 'Talk to your vault' });
     const actions = header.createDiv({ cls: 'fjgduo-vault-live-split-actions' });
-    const note = actions.createEl('button', { text: 'Show Note', attr: { type: 'button', 'data-ignore-swipe': '' } });
+    const note = actions.createEl('button', {
+      text: this.app.workspace.getActiveFile() ? 'Show Note' : 'Hide Chat',
+      cls: 'fjgduo-vault-live-note-only', attr: { type: 'button', 'data-ignore-swipe': '' }
+    });
     note.addEventListener('click', () => this.showNoteOnly());
     const close = actions.createEl('button', { attr: { type: 'button', 'aria-label': 'Close conversation', 'data-ignore-swipe': '' } });
     setIcon(close, 'x'); close.addEventListener('click', () => this.close());
@@ -486,10 +527,9 @@ export class VaultVoiceModal extends Modal {
       if (!canPresent()) throw new Error('Conversation closed.');
       workspace.setActiveLeaf(leaf, { focus: false });
       // Do not reveal the folder on this route: that opens the drawer in front of the note.
-      if (workspace.leftSplit instanceof WorkspaceMobileDrawer) workspace.leftSplit.collapse();
-      if (workspace.rightSplit instanceof WorkspaceMobileDrawer) workspace.rightSplit.collapse();
+      this.collapseNativeDrawers();
       this.voiceSelection.note = path;
-      this.lastOpenedNote = path;
+      this.splitPanel?.querySelector<HTMLButtonElement>('.fjgduo-vault-live-note-only')?.setText('Show Note');
       this.closeMobileResults();
       if (this.presentation === 'shown') this.minimizeMobile(this.isWideWorkspace());
       else if (this.presentation === 'minimized' && !this.manualNoteOnly && this.isWideWorkspace()) this.mountSplit();

@@ -1,3 +1,9 @@
+## Open Talk to Vault side by side — 0.1.20
+
+On a wide mobile workspace, **Talk to Vault** opens on the left beside the note already on the right (or the empty workspace) before you send a message. The first selected result opens in the same native note area without replacing the chat, draft, or live session. An overlay drawer can close and let the chat dock after its animation. A pinned drawer keeps its setting and the single-pane Chat/Note controls remain available when the actual workspace is too narrow.
+
+Automated checks cover a wide active note, an empty wide workspace, a translated drawer, a wide window with a narrower note area, and opening a first result while docked. Physical iPhone behavior is not verified.
+
 ## Wide mobile Talk to Vault and typed turns — 0.1.19
 
 Typed turns prepare silent audio from the Send gesture before reading the saved key. Typed tool responses with an omitted delegation ID are routed using their own explicit response ID. Typing still does not activate the microphone.

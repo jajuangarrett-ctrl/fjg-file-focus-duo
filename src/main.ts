@@ -408,7 +408,7 @@ export default class FileTreeAlternativePlugin extends Plugin {
     openVaultVoice(selection = { folder: '', note: '' }): void {
         if (this.vaultVoiceModal) { this.vaultVoiceModal.restoreChat(); return; }
         this.vaultVoiceModal = new VaultVoiceModal(this.app, this, selection, () => { this.vaultVoiceModal = null; });
-        this.vaultVoiceModal.open();
+        this.vaultVoiceModal.openResponsive();
     }
 
     async resolveVoiceApiKey(): Promise<string> {
