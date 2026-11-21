@@ -1403,3 +1403,77 @@ body.is-phone .duo-navigator.duo-compact .fjgduo-expand-chevron { width:18px; he
     background: var(--text-accent);
 }
 .fjgduo-vault-live-restore-status { font-size: var(--font-smallest, 11px); color: var(--text-muted); }
+
+/* Obsidian mobile may show only the active tab group. Reserve a left lane on
+   the existing workspace root instead of creating, cloning, or moving editors. */
+.workspace-split.mod-root.fjgduo-vault-live-split-root {
+    position: relative;
+    padding-left: calc(var(--fjgduo-voice-pane-width, 304px) + var(--safe-area-inset-left, 0px));
+}
+.workspace-split.mod-root > .fjgduo-vault-live-split-pane {
+    --fjgduo-voice-safe-end: 0px;
+    --fjgduo-voice-safe-start: max(env(safe-area-inset-left, 0px), var(--safe-area-inset-left, 0px));
+    --fjgduo-voice-safe-bottom: max(env(safe-area-inset-bottom, 0px), var(--safe-area-inset-bottom, 0px));
+    box-sizing: border-box;
+    position: absolute;
+    top: var(--fjgduo-voice-top, 0px);
+    left: 0;
+    z-index: 1;
+    display: flex;
+    flex-flow: column nowrap;
+    flex: none;
+    width: calc(var(--fjgduo-voice-pane-width, 304px) + var(--safe-area-inset-left, 0px));
+    height: var(--fjgduo-voice-height, 100%);
+    overflow: hidden;
+    border-right: 1px solid var(--background-modifier-border, #dddddd);
+    background: var(--background-primary);
+}
+.fjgduo-vault-live-keyboard .fjgduo-vault-live-split-pane { --fjgduo-voice-safe-bottom: 0px; }
+.fjgduo-vault-live-split-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex: 0 0 auto;
+    min-height: 52px;
+    gap: 4px;
+    padding: 4px 6px 4px calc(10px + var(--fjgduo-voice-safe-start));
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+.fjgduo-vault-live-split-title { min-width: 0; margin: 0; font-size: var(--font-ui-medium, 17px); line-height: 1.2; }
+.fjgduo-vault-live-split-actions { display: flex; flex: 0 0 auto; gap: 4px; }
+.fjgduo-vault-live-split-actions button, .fjgduo-vault-live-minimize {
+    flex: 0 0 auto;
+    min-width: 44px;
+    min-height: 44px;
+    padding-inline: 6px;
+    touch-action: manipulation;
+}
+.fjgduo-vault-live-mobile-host .fjgduo-vault-live-status {
+    flex: 0 0 auto;
+    max-height: 70px;
+    overflow: auto;
+    font-size: var(--font-ui-small, 13px);
+    line-height: 1.25;
+    margin: 0;
+    border-radius: 0;
+    padding: 6px calc(12px + var(--fjgduo-voice-safe-end)) 6px calc(12px + var(--fjgduo-voice-safe-start));
+    overflow-wrap: anywhere;
+}
+.fjgduo-vault-live-mobile-host .fjgduo-vault-live-composer :is(button,textarea) { touch-action: manipulation; }
+.fjgduo-vault-live-keyboard .fjgduo-vault-live-composer {
+    flex: 0 0 auto;
+    max-height: 90px;
+}
+.modal-container.fjgduo-vault-live-handoff,
+.modal-container.fjgduo-vault-live-handoff .modal,
+.modal-container.fjgduo-vault-live-handoff .modal-bg {
+    pointer-events: none;
+}
+.fjgduo-vault-live-restore-dock {
+    inset-inline-start: calc(8px + max(env(safe-area-inset-left, 0px), var(--safe-area-inset-left, 0px)));
+    inset-inline-end: auto;
+}
+body:has(> .menu:not([hidden]):not(.is-hidden)) .fjgduo-vault-live-restore-dock {
+    visibility: hidden;
+    pointer-events: none;
+}

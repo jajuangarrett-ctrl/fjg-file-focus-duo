@@ -2,12 +2,16 @@
 type Event = Record<string, any>;
 /** Tracks completed function items, not empty lifecycle snapshots. Serializes writes and deduplicates call IDs. */
 export class LiveToolLoop {
-  private responses = new Map<string, { calls: Event[]; finished: boolean }>();
+  private responses = new Map<string, { calls: Event[]; finished: boolean; delegation?: string }>();
   private current = new Map<string, string>();
   private results = new Map<string, Promise<unknown>>();
   private chain: Promise<void> = Promise.resolve();
   private stopped = false;
-  constructor(private execute: (name: string, args: string, id: string) => Promise<unknown>, private send: (event: Event) => void) {}
+  private execute: (name: string, args: string, id: string) => Promise<unknown>;
+  private send: (event: Event) => void;
+  constructor(execute: (name: string, args: string, id: string) => Promise<unknown>, send: (event: Event) => void) {
+    this.execute = execute; this.send = send;
+  }
   stop(): void { this.stopped = true; }
   handle(envelope: Event): Promise<void> {
     this.chain = this.chain.then(() => this.process(envelope));
@@ -16,19 +20,23 @@ export class LiveToolLoop {
   private async process(envelope: Event): Promise<void> {
     if (this.stopped || envelope.type !== "response.event") return;
     const event = envelope.event;
-    const delegation = envelope.delegation_id;
-    if (!event || typeof delegation !== "string") return;
+    const rawDelegation = envelope.delegation_id;
+    if (!event || (rawDelegation != null && typeof rawDelegation !== "string")) return;
+    const delegation = typeof rawDelegation === "string" && rawDelegation ? rawDelegation : undefined;
+    const explicitId = typeof event.response?.id === "string" && event.response.id ? event.response.id
+      : typeof event.response_id === "string" && event.response_id ? event.response_id : undefined;
     if (event.type === "response.created") {
-      const id = event.response?.id;
-      if (typeof id === "string") {
-        this.current.set(delegation, id);
-        if (!this.responses.has(id)) this.responses.set(id, { calls: [], finished: false });
+      if (explicitId && !this.responses.has(explicitId)) {
+        if (delegation) this.current.set(delegation, explicitId);
+        this.responses.set(explicitId, { calls: [], finished: false, delegation });
       }
       return;
     }
-    const id = event.response?.id || this.current.get(delegation);
-    const state = this.responses.get(id);
-    if (!state || state.finished) return;
+    // App-started typed responses may have a null or omitted delegation_id.
+    // Without a delegation, only an explicit nested response ID can route an item.
+    const id = explicitId ?? (delegation ? this.current.get(delegation) : undefined);
+    const state = id ? this.responses.get(id) : undefined;
+    if (!state || state.finished || (state.delegation && delegation && state.delegation !== delegation)) return;
     if (event.type === "response.output_item.done" && event.item?.type === "function_call") {
       if (!state.calls.some((call) => call.call_id === event.item.call_id)) state.calls.push(event.item);
     }

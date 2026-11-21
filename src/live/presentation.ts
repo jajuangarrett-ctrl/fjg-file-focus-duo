@@ -1,23 +1,37 @@
-/** Follow the space available to the native modal, including the iOS keyboard. */
-export function followVoiceViewport(host: HTMLElement, onWidth: (width: number) => void): () => void {
-  const win = host.ownerDocument.defaultView;
+export const VOICE_SPLIT_MIN_WIDTH = 720;
+const VOICE_SPLIT_EXIT_WIDTH = 680;
+
+export function canSplitVoice(width: number, alreadySplit: boolean): boolean {
+  return width >= (alreadySplit ? VOICE_SPLIT_EXIT_WIDTH : VOICE_SPLIT_MIN_WIDTH);
+}
+
+const voiceViewportProperties = ['left', 'top', 'width', 'height'] as const;
+
+/** Follow the space available to the native modal or workspace, including the iOS keyboard. */
+export function followVoiceViewport(host: HTMLElement, onWidth: (width: number) => void, reserveNavbar = false): () => void {
+  const doc = host.ownerDocument;
+  const win = doc.defaultView;
   if (!win) return () => {};
   const visual = win.visualViewport;
   let frame = 0;
   const measure = () => {
     frame = 0;
     const rect = host.getBoundingClientRect();
-    if (rect.width <= 0 || rect.height <= 0) return;
+    if (rect.width <= 0 || rect.height <= 0) { onWidth(0); return; }
     const left = Math.max(rect.left, visual?.offsetLeft ?? 0);
     const top = Math.max(rect.top, visual?.offsetTop ?? 0);
+    const viewportBottom = (visual?.offsetTop ?? 0) + (visual?.height ?? win.innerHeight);
     const width = Math.min(rect.right, (visual?.offsetLeft ?? 0) + (visual?.width ?? win.innerWidth)) - left;
-    const height = Math.min(rect.bottom, (visual?.offsetTop ?? 0) + (visual?.height ?? win.innerHeight)) - top;
-    if (width <= 0 || height <= 0) return;
-    host.style.setProperty('--fjgduo-voice-left', `${left - rect.left}px`);
-    host.style.setProperty('--fjgduo-voice-top', `${top - rect.top}px`);
-    host.style.setProperty('--fjgduo-voice-width', `${width}px`);
-    host.style.setProperty('--fjgduo-voice-height', `${height}px`);
-    host.classList.toggle('fjgduo-vault-live-keyboard', rect.height - height > 80);
+    const navbar = reserveNavbar ? doc.querySelector('.mobile-navbar')?.getBoundingClientRect() : undefined;
+    const navTop = navbar && navbar.width > 0 && navbar.height > 0 && navbar.top > top ? navbar.top : Infinity;
+    const height = Math.min(rect.bottom, viewportBottom, navTop) - top;
+    if (width <= 0 || height <= 0) { onWidth(0); return; }
+    const pixels = [left - rect.left, top - rect.top, width, height];
+    voiceViewportProperties.forEach((key, i) => {
+      const prop = `--fjgduo-voice-${key}`, value = `${pixels[i]}px`;
+      if (host.style.getPropertyValue(prop) !== value) host.style.setProperty(prop, value);
+    });
+    host.classList.toggle('fjgduo-vault-live-keyboard', rect.bottom - viewportBottom > 80);
     onWidth(width);
   };
   const schedule = () => { if (!frame) frame = win.requestAnimationFrame(measure); };
@@ -33,5 +47,7 @@ export function followVoiceViewport(host: HTMLElement, onWidth: (width: number) 
     win.removeEventListener('resize', schedule);
     visual?.removeEventListener('resize', schedule);
     visual?.removeEventListener('scroll', schedule);
+    voiceViewportProperties.forEach(key => host.style.removeProperty(`--fjgduo-voice-${key}`));
+    host.classList.remove('fjgduo-vault-live-keyboard');
   };
 }

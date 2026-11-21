@@ -1,3 +1,11 @@
+## Wide mobile Talk to Vault and typed turns — 0.1.19
+
+Typed turns prepare silent audio from the Send gesture before reading the saved key. Typed tool responses with an omitted delegation ID are routed using their own explicit response ID. Typing still does not activate the microphone.
+
+After opening a note on a wide mobile workspace, the same chat stays on the left while the real Obsidian note stays on the right. Narrow workspaces use **Show Chat** and **Show Note** without losing the draft, transcript, or live session. The restore control yields to Obsidian's note menu. No native editor is duplicated and desktop layout is unchanged.
+
+Automated checks use synthetic notes, keyboard geometry, audio and protocol responses. Physical iPhone and live service behavior still need verification.
+
 ## Mobile Talk to Vault — 0.1.18
 
 On mobile, **Talk to Vault** follows the space actually available to Obsidian. On narrow panes it fills the width. The composer stays at the bottom of the visible area when the keyboard appears, and the search results replace the chat body until you choose a note or go **Back to Chat**.

@@ -27,6 +27,7 @@ export class VaultLiveSession {
   private ready = false;
   private textOnly = false;
   private microphoneWarming = false;
+  private preparedTextInput?: Promise<{ stream: MediaStream } | { error: unknown }>;
   private audioContext?: AudioContext;
   private silentSource?: OscillatorNode;
   private silentStream?: MediaStream;
@@ -92,6 +93,12 @@ export class VaultLiveSession {
     }
   }
 
+  /** Begin resuming Web Audio inside the explicit Send gesture, before an async key read. */
+  prepareTextInput(): void {
+    if (this.disposed || this.preparedTextInput) return;
+    this.preparedTextInput = this.silentInput().then(stream => ({ stream }), error => ({ error }));
+  }
+
   private async silentInput(): Promise<MediaStream> {
     const Audio = globalThis.AudioContext || (globalThis as any).webkitAudioContext;
     if (!Audio) throw new Error('Text with spoken replies is not supported on this device.');
@@ -127,7 +134,15 @@ export class VaultLiveSession {
         });
       });
       // Start from the user's click; never automatically reopen a microphone after disconnecting.
-      const microphone = textOnly ? await this.silentInput() : await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+      let microphone: MediaStream;
+      if (textOnly) {
+        this.prepareTextInput();
+        const prepared = await this.preparedTextInput!;
+        if ('error' in prepared) throw prepared.error;
+        microphone = prepared.stream;
+      } else {
+        microphone = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+      }
       if (this.disposed) { microphone.getTracks().forEach((track) => track.stop()); return; }
       this.microphone = microphone;
       for (const track of microphone.getAudioTracks()) this.sender = peer.addTrack(track, microphone);
@@ -215,6 +230,7 @@ export class VaultLiveSession {
     this.microphone?.getTracks().forEach((track) => track.stop());
     this.silentSource?.stop(); this.silentSource = undefined;
     this.silentStream?.getTracks().forEach(track => track.stop()); this.silentStream = undefined;
+    this.preparedTextInput = undefined;
     void this.audioContext?.close().catch(() => {}); this.audioContext = undefined;
     this.backendResponses.clear(); this.pendingResponses = 0; this.updateBusy();
     this.channel?.close();
@@ -306,7 +322,7 @@ export class VaultLiveSession {
 
   private handleBackendEvent(event: Record<string, any>): void {
     const nested = event.event;
-    const id = nested?.response?.id;
+    const id = nested?.response?.id ?? nested?.response_id;
     if (nested?.type === 'response.created' && typeof id === 'string') {
       this.pendingResponses = Math.max(0, this.pendingResponses - 1); this.backendResponses.add(id); this.updateBusy();
     }
