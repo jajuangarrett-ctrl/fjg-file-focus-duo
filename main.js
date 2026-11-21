@@ -4089,6 +4089,161 @@ function VirtualFiles({ files, render, layoutKey }) {
     return React.createElement("div", { ref: element, className: "duo-virtual-files", role: "list", "aria-label": "Files", style: { height: files.length * FILE_ROW_HEIGHT } }, files.slice(range.start, range.end).map((file, index) => React.createElement("div", { role: "listitem", key: file.path, style: { position: 'absolute', top: (index + range.start) * FILE_ROW_HEIGHT, height: FILE_ROW_HEIGHT, width: '100%' } }, render(file))));
 }
 
+/** Shared, inert content classifier. No DOM parsing, execution, assets or network. */
+const HTML_CLASSIFICATION_PREFIX = 64 * 1024;
+function classifyHtmlContent(text) {
+    let prefix = text.slice(0, HTML_CLASSIFICATION_PREFIX).replace(/^\uFEFF/, "").trimStart();
+    // Leading comments and an XML declaration are common in generated/XHTML pages.
+    for (let n = 0; n < 64; n++) {
+        if (prefix.startsWith("<!--")) {
+            const end = prefix.indexOf("-->");
+            if (end < 0)
+                return false;
+            prefix = prefix.slice(end + 3).trimStart();
+        }
+        else if (/^<\?xml\s/i.test(prefix)) {
+            const end = prefix.indexOf("?>");
+            if (end < 0)
+                return false;
+            prefix = prefix.slice(end + 2).trimStart();
+        }
+        else
+            break;
+    }
+    if (/^<!doctype\s+html(?=\s|>)[^<>]*>/i.test(prefix))
+        return true;
+    if (/^<(?:html|head|body)(?:\s[^<>]*|\s*)>/i.test(prefix))
+        return true;
+    // Fragments must start with actual structural markup and contain a matching
+    // closing tag. Prose/fences/escaped examples and lone script/style are not pages.
+    const fragment = /^<(main|article|section|div|p|h[1-6]|table|ul|ol|form|nav|header|footer|aside|figure|blockquote|pre|details|dl)(?:\s[^<>]*|\s*)>/i.exec(prefix);
+    return !!fragment && new RegExp("</" + fragment[1] + "\\s*>", "i").test(prefix.slice(fragment[0].length));
+}
+function isHtmlBrowseExtension(extension) {
+    return /^(?:html|htm)$/i.test(extension);
+}
+const MAX_HTML_BROWSE_BYTES = 8 * 1024 * 1024;
+/** Keep only a boolean per version in memory; never retain HTML source. */
+class HtmlFileClassification {
+    constructor(read) {
+        this.cache = new WeakMap();
+        this.queue = [];
+        this.running = 0;
+        this.read = read;
+    }
+    verified(file) {
+        var _a;
+        return (_a = this.current(file)) === null || _a === void 0 ? void 0 : _a.verified;
+    }
+    invalidate(file) {
+        this.cache.delete(file);
+    }
+    verify(file) {
+        const existing = this.current(file);
+        if (existing)
+            return existing.promise;
+        let finish;
+        const promise = new Promise((resolve) => { finish = resolve; });
+        const entry = { promise, revision: this.revision(file) };
+        this.cache.set(file, entry);
+        this.queue.push(() => __awaiter(this, void 0, void 0, function* () {
+            if (this.current(file) !== entry) {
+                finish(false);
+                return;
+            }
+            try {
+                const valid = file.stat.size <= MAX_HTML_BROWSE_BYTES && classifyHtmlContent(yield this.read(file));
+                if (this.current(file) !== entry) {
+                    finish(false);
+                    return;
+                }
+                entry.verified = valid;
+                finish(valid);
+            }
+            catch (_a) {
+                // A transient file-access failure can be retried when next browsed.
+                if (this.current(file) === entry)
+                    this.invalidate(file);
+                finish(false);
+            }
+        }));
+        this.pump();
+        return promise;
+    }
+    current(file) {
+        const entry = this.cache.get(file);
+        return (entry === null || entry === void 0 ? void 0 : entry.revision) === this.revision(file) ? entry : undefined;
+    }
+    revision(file) {
+        return `${file.path}\n${file.stat.ctime}:${file.stat.mtime}:${file.stat.size}`;
+    }
+    pump() {
+        // Mobile adapters read whole files: classify the head and limit concurrent I/O.
+        while (this.running < 3 && this.queue.length) {
+            const next = this.queue.shift();
+            this.running++;
+            void next().finally(() => {
+                this.running--;
+                this.pump();
+            });
+        }
+    }
+}
+
+const vaultClassifiers = new WeakMap();
+function classifierFor(vault) {
+    let classifier = vaultClassifiers.get(vault);
+    if (!classifier) {
+        classifier = new HtmlFileClassification(file => vault.read(file));
+        vaultClassifiers.set(vault, classifier);
+    }
+    return classifier;
+}
+function useVerifiedHtmlFiles(vault, files) {
+    const classifier = classifierFor(vault);
+    const [revision, invalidate] = reactExports.useState(0);
+    const [checked, update] = reactExports.useState(0);
+    const candidates = reactExports.useMemo(() => {
+        const result = new Map();
+        for (const item of files) {
+            if (!isHtmlBrowseExtension(item.extension))
+                continue;
+            const file = vault.getAbstractFileByPath(item.path);
+            if (file instanceof obsidian.TFile)
+                result.set(item.path, file);
+        }
+        return result;
+    }, [vault, files]);
+    reactExports.useEffect(() => {
+        if (!candidates.size)
+            return;
+        const listener = vault.on('modify', file => {
+            if (file instanceof obsidian.TFile && candidates.get(file.path) === file) {
+                classifier.invalidate(file);
+                invalidate(n => n + 1);
+            }
+        });
+        return () => vault.offref(listener);
+    }, [vault, classifier, candidates]);
+    reactExports.useEffect(() => {
+        const pending = [...candidates.values()].filter(file => classifier.verified(file) === undefined);
+        if (!pending.length)
+            return;
+        let current = true;
+        void Promise.all(pending.map(file => classifier.verify(file))).then(() => {
+            if (current)
+                update(n => n + 1);
+        });
+        return () => { current = false; };
+    }, [classifier, candidates, revision]);
+    return reactExports.useMemo(() => files.filter(item => {
+        if (!isHtmlBrowseExtension(item.extension))
+            return true;
+        const file = candidates.get(item.path);
+        return !!file && classifier.verified(file) === true;
+    }), [files, candidates, classifier, revision, checked]);
+}
+
 const SEMANTIC_LINK_SUGGESTIONS_COMMAND_ID = 'semantic-graph-builder:open-link-suggestions';
 const AUTO_TITLE_COMMAND_ID = 'auto-title:generate-title';
 const DELETE_CURRENT_FILE_COMMAND_ID$1 = 'app:delete-file';
@@ -4248,11 +4403,12 @@ function FileComponent(props) {
         if (searchBoxVisible)
             (_a = searchInput.current) === null || _a === void 0 ? void 0 : _a.focus();
     }, [searchBoxVisible]);
-    const filesToList = reactExports.useMemo(() => sortedFiles({
+    const sortedFiles$1 = reactExports.useMemo(() => sortedFiles({
         fileList: ozFileList$1,
         plugin: plugin,
         ozPinnedFiles: ozPinnedFiles,
     }), [excludedFolders$1, excludedExtensions$1, ozPinnedFiles, ozFileList$1, plugin.settings.sortFilesBy, plugin.settings.sortReverse]);
+    const filesToList = useVerifiedHtmlFiles(plugin.app.vault, sortedFiles$1);
     // Go Back Button - Sets Main Component View to Folder
     const handleGoBack = (e) => {
         setView('folder');
@@ -4483,8 +4639,8 @@ function FileComponent(props) {
                         ? searchBoxVisible
                             ? ' fjgduo-tree-files-fixed-with-search'
                             : ' fjgduo-tree-files-fixed'
-                        : ''}` }, filesToList.map((file, index) => {
-                    return (React.createElement(g, { height: 22, key: index },
+                        : ''}` }, filesToList.map((file) => {
+                    return (React.createElement(g, { height: 22, key: file.path },
                         React.createElement(NavFile, { file: file, plugin: plugin })));
                 }))))))));
 }

@@ -18,11 +18,40 @@ function file(name:string,parent:TFolder,extension='md'){const f=new TFile();f.e
 const projects=folder('Projects',root);const child=folder('Subfolder',projects);folder('Archive',root);
 for(let i=0;i<3000;i++)file(`Note ${String(i).padStart(4,'0')}`,projects);
 file('Child note',child);file('Visible text file',projects,'txt');file('Root note',root);file('__init__',projects,'py');file('__init__.cpython-314',projects,'pyc');
+const htmlSamples=folder('Sample pages',root);
+const htmlSources=new Map<string,string>();
+for(const [name,ext,source] of [
+    ['Fixture valid','html','<!doctype html><html><p>Page</p></html>'],
+    ['Fixture fragment','HTM','<article><p>Fragment</p></article>'],
+    ['Fixture fake','html','This is plain prose with <div>quoted tags</div>.'],
+    ['Fixture fenced','htm','```html\n<!doctype html>\n<html></html>\n```'],
+    ['Fixture ordinary text','txt','This is a text attachment.'],
+    ['Fixture normal note','md','# This is a Markdown note'],
+]) {
+    const item=file(name,htmlSamples,ext);
+    htmlSources.set(item.path,source);
+}
+const htmlReads=new Map<string,number>();
+const htmlChanges=new Set<(file:TFile)=>void>();
+let pauseHtml: string | undefined;
+let releaseHtml: (() => void) | undefined;
+
 const listeners=new Set<Function>();
 const mainRoot = {};
 const leaf:any={getRoot:()=>mainRoot,view:{getViewType:()=> 'fjg-file-focus-duo-view'},openFile:async(f:any)=>(window as any).opened.push(f.path)};
 const app:any={
- vault:{getRoot:()=>root,getName:()=>root.name,getAbstractFileByPath:(path:string)=>map.get(path),getFiles:()=>[...map.values()].filter(f=>f instanceof TFile),getAllLoadedFiles:()=>[...map.values()],getMarkdownFiles:()=>[...map.values()].filter(f=>f instanceof TFile),cachedRead:async()=> '# Fixture',getConfig:()=>false},
+ vault:{getRoot:()=>root,getName:()=>root.name,getAbstractFileByPath:(path:string)=>map.get(path),getFiles:()=>[...map.values()].filter(f=>f instanceof TFile),getAllLoadedFiles:()=>[...map.values()],getMarkdownFiles:()=>[...map.values()].filter(f=>f instanceof TFile),cachedRead:async()=> '# Fixture',getConfig:()=>false,
+  read:async(f:TFile)=>{
+      htmlReads.set(f.path,(htmlReads.get(f.path)??0)+1);
+      const source=htmlSources.get(f.path)??'';
+      if (pauseHtml===f.path) {
+          pauseHtml=undefined;
+          await new Promise<void>(resolve=>{releaseHtml=resolve;});
+      }
+      return source;
+  },
+  on:(event:string,callback:(file:TFile)=>void)=>{if(event==='modify')htmlChanges.add(callback);return callback;},
+  offref:(callback:(file:TFile)=>void)=>htmlChanges.delete(callback)},
  workspace:{rootSplit:mainRoot,iterateRootLeaves:()=>{},getActiveFile:()=>map.get('Projects/Note 0000.md'),getLastOpenFiles:()=>['Projects/Note 0000.md'],getLeaf:()=>leaf,setActiveLeaf:()=>{},trigger:()=>{},getLeavesOfType:()=>[],activeLeaf:leaf},
  metadataCache:{getFileCache:()=>({tags:[],frontmatter:{}})},
  internalPlugins:{plugins:{},getEnabledPluginById:(id:string)=>id==='bookmarks'?{items:[{type:'group',title:'Group',items:[{type:'file',path:'Projects/Note 0000.md'}]},{type:'file',path:'Projects/Note 0001.md'}]}:null},
@@ -30,6 +59,20 @@ const app:any={
 };
 const plugin:any={app,manifest:{id:'fjg-file-focus-duo'},settings:{...DEFAULT_SETTINGS,folderNote:false,excludedExtensions:'.PY, pyc'},keys:{activeFolderPathKey:'fixture-active',focusedFolder:'fixture-focus',pinnedFilesKey:'fixture-pins',openFoldersKey:'fixture-open'},VIEW_TYPE:'fjg-file-focus-duo-view',saveSettings:async()=>{},shouldBuildFolderTreeRecursively:()=>true,isMobilePerformanceModeEnabled:()=>false,shouldFollowActiveFile:()=>false,openFileTreeLeaf:async()=>{},registerFolderRevealListener:(fn:Function)=>{listeners.add(fn);return()=>listeners.delete(fn);},openInboxMorningBrief:()=>{},openVaultVoice:(selection:any)=>{(window as any).voiceSelection=selection;}};
 (window as any).fixture={plugin,app,root,projects,child,refresh:()=>window.dispatchEvent(new Event(eventTypes.refreshView)),reveal:(path:string)=>window.dispatchEvent(new CustomEvent(eventTypes.revealFile,{detail:{file:map.get(path)}})),setSetting:(key:string,value:any)=>{plugin.settings[key]=value;window.dispatchEvent(new Event(eventTypes.refreshView));}};
+(window as any).fixture.htmlState = {
+    reads:()=>Object.fromEntries(htmlReads),
+    pauseRead:(name:string)=>{pauseHtml='Sample pages/'+name;},
+    finishRead:async()=>{
+        releaseHtml?.();releaseHtml=undefined;
+        await new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve())));
+    },
+    replace:(name:string,source:string)=>{
+        const path='Sample pages/'+name;
+        htmlSources.set(path,source);
+        const item=map.get(path);
+        for(const listener of htmlChanges)listener(item);
+    }
+};
 (window as any).fixture.tabRouting = (scenario: string) => {
     const workspace = app.workspace;
     const folders = { id:'duo', getRoot:()=>scenario === 'drawer' ? {} : mainRoot, view:{getViewType:()=> 'fjg-file-focus-duo-view'} };

@@ -1,3 +1,9 @@
+## Show real HTML in folder browsing — 0.1.21
+
+Duo's folder file list and file-name search show `.html` and `.htm` files only when their contents look like an HTML page. Plain text and fenced code examples renamed to HTML no longer appear in those lists. Ordinary text and Markdown files, existing bookmarks, and direct opens are unchanged. Files are not moved or deleted.
+
+Checks run only for current candidates and refresh after a save. They read locally, cache only the yes/no result, and skip HTML larger than 8 MiB to keep the mobile browser responsive. Large files remain available through Obsidian's own file browser.
+
 ## Open Talk to Vault side by side — 0.1.20
 
 On a wide mobile workspace, **Talk to Vault** opens on the left beside the note already on the right (or the empty workspace) before you send a message. The first selected result opens in the same native note area without replacing the chat, draft, or live session. An overlay drawer can close and let the chat dock after its animation. A pinned drawer keeps its setting and the single-pane Chat/Note controls remain available when the actual workspace is too narrow.

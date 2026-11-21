@@ -15,6 +15,7 @@ import { getPageText } from 'utils/noteContent';
 import LazyLoad from 'react-lazy-load';
 import { DuoActionsRef } from 'components/MainView/duoActions';
 import { VirtualFiles } from 'components/MainView/VirtualFiles';
+import { useVerifiedHtmlFiles } from 'hooks/useVerifiedHtmlFiles';
 
 interface FilesProps {
     plugin: FileTreeAlternativePlugin;
@@ -208,7 +209,7 @@ export function FileComponent(props: FilesProps) {
         if (searchBoxVisible) searchInput.current?.focus();
     }, [searchBoxVisible]);
 
-    const filesToList: OZFile[] = useMemo(
+    const sortedFiles: OZFile[] = useMemo(
         () =>
             FileViewHandlers.sortedFiles({
                 fileList: ozFileList,
@@ -217,6 +218,8 @@ export function FileComponent(props: FilesProps) {
             }),
         [excludedFolders, excludedExtensions, ozPinnedFiles, ozFileList, plugin.settings.sortFilesBy, plugin.settings.sortReverse]
     );
+
+    const filesToList = useVerifiedHtmlFiles(plugin.app.vault, sortedFiles);
 
     // Go Back Button - Sets Main Component View to Folder
     const handleGoBack = (e: React.MouseEvent) => {
@@ -579,9 +582,9 @@ export function FileComponent(props: FilesProps) {
                                             : ' fjgduo-tree-files-fixed'
                                         : ''
                                 }`}>
-                                {filesToList.map((file, index) => {
+                                {filesToList.map((file) => {
                                     return (
-                                        <LazyLoad height={22} key={index}>
+                                        <LazyLoad height={22} key={file.path}>
                                             <NavFile file={file} plugin={plugin} />
                                         </LazyLoad>
                                     );
