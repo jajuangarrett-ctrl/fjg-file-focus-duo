@@ -102,6 +102,7 @@ export class CustomVaultChangeBatchEvent extends Event {
 }
 
 export const eventTypes = {
+    folderRevealInView: 'fjgduo-folder-reveal-in-view',
     activeFileChange: 'fjgduo-event-active-file-change',
     followActiveFileChange: 'fjg-file-focus-duo-follow-active-file-change',
     refreshView: 'fjgduo-event-refresh-view',

@@ -48,7 +48,7 @@ export default class FileTreeAlternativePlugin extends Plugin {
     ribbonIconEl: HTMLElement | undefined = undefined;
     inboxMorningBriefRibbonIconEl: HTMLElement | undefined = undefined;
     ribbonMutationObserver: MutationObserver | undefined = undefined;
-    folderRevealListeners = new Set<(folder: TFolder) => void>();
+    folderRevealListeners = new Map<FileTreeView, (folder: TFolder) => void>();
     mountedFileTreeViews = new Set<FileTreeView>();
     hydratingFileTreeLeaves = new WeakSet<WorkspaceLeaf>();
     mobileVaultChangeQueue = new DebouncedBatchQueue<VaultChangeDetail>(
@@ -475,25 +475,48 @@ export default class FileTreeAlternativePlugin extends Plugin {
         await Promise.resolve(commands.executeCommandById(DELETE_CURRENT_FILE_COMMAND_ID));
     };
 
-    revealFolderPath = async (folderPath: string) => {
+    revealFolderPath = async (folderPath: string, options?: { useExistingPane?: boolean }) => {
         const folder = this.app.vault.getAbstractFileByPath(folderPath);
         if (!(folder instanceof TFolder)) {
             throw new Error(`Folder not found: ${folderPath}`);
         }
 
-        await this.openFileTreeLeaf(true);
-        for (let attempt = 0; attempt < 12 && this.folderRevealListeners.size === 0; attempt += 1) {
-            await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+        if (Platform.isMobile && !options?.useExistingPane) {
+            const workspace = this.app.workspace;
+            const tabs = workspace.getLeavesOfType(this.VIEW_TYPE)
+                .filter(leaf => leaf.getRoot() === workspace.rootSplit);
+            let target = tabs.find(leaf => leaf === workspace.activeLeaf) ?? tabs[0];
+            if (!target) {
+                target = workspace.getLeaf('tab');
+                await target.setViewState({ type: this.VIEW_TYPE, active: true });
+            }
+            await workspace.revealLeaf(target);
+            await this.hydrateFileTreeLeaf(target, true);
+            if (!this.isFileTreeViewReady(target)) throw new Error('FJG File Focus Duo tab is not ready.');
+            const view = target.view as FileTreeView;
+            view.activate();
+            workspace.setActiveLeaf(target, { focus: false });
+            for (let attempt = 0; attempt < 24 && !this.folderRevealListeners.has(view); attempt += 1) {
+                await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+            }
+            const reveal = this.folderRevealListeners.get(view);
+            if (!reveal) throw new Error('FJG File Focus Duo tab is not ready.');
+            reveal(folder);
+            return;
         }
+
+        await this.openFileTreeLeaf(true);
         if (this.folderRevealListeners.size === 0) {
             throw new Error('FJG File Focus Duo view is not ready.');
         }
         this.folderRevealListeners.forEach((listener) => listener(folder));
     };
 
-    registerFolderRevealListener = (listener: (folder: TFolder) => void) => {
-        this.folderRevealListeners.add(listener);
-        return () => this.folderRevealListeners.delete(listener);
+    registerFolderRevealListener = (view: FileTreeView, listener: (folder: TFolder) => void) => {
+        this.folderRevealListeners.set(view, listener);
+        return () => {
+            if (this.folderRevealListeners.get(view) === listener) this.folderRevealListeners.delete(view);
+        };
     };
 
     bookmarksEventHandler = async (event: Event) => {

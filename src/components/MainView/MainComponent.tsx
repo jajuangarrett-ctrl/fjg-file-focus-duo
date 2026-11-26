@@ -75,7 +75,7 @@ export default function MainTreeComponent(props: MainTreeComponentProps) {
 
     // --> Create Custom Event Handlers
     useEffect(() => {
-        const unregisterFolderRevealListener = plugin.registerFolderRevealListener(revealFolderInFileTree);
+        const unregisterFolderRevealListener = plugin.registerFolderRevealListener(props.fileTreeView, revealFolderInFileTree);
         window.addEventListener(eventTypes.vaultChange, vaultChangeEvent);
         window.addEventListener(eventTypes.vaultChanges, vaultChangesEvent);
         window.addEventListener(eventTypes.activeFileChange, changeActiveFile);
@@ -553,6 +553,7 @@ export default function MainTreeComponent(props: MainTreeComponentProps) {
         setView('file');
         const foldersToOpen = getAllFoldersToOpen(folderToReveal);
         setOpenFolders((currentOpenFolders) => Array.from(new Set([...currentOpenFolders, ...foldersToOpen])));
+        props.fileTreeView.containerEl.dispatchEvent(new CustomEvent(eventTypes.folderRevealInView));
         scrollToFolder(folderToReveal);
     }
 

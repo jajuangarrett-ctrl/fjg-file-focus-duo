@@ -36,7 +36,8 @@ const htmlChanges=new Set<(file:TFile)=>void>();
 let pauseHtml: string | undefined;
 let releaseHtml: (() => void) | undefined;
 
-const listeners=new Set<Function>();
+const listeners=new Map<any,(folder:TFolder)=>void>();
+const fixtureView = { containerEl:document.getElementById('mount'), activate:()=>{} };
 const mainRoot = {};
 const leaf:any={getRoot:()=>mainRoot,view:{getViewType:()=> 'fjg-file-focus-duo-view'},openFile:async(f:any)=>(window as any).opened.push(f.path)};
 const app:any={
@@ -57,7 +58,7 @@ const app:any={
  internalPlugins:{plugins:{},getEnabledPluginById:(id:string)=>id==='bookmarks'?{items:[{type:'group',title:'Group',items:[{type:'file',path:'Projects/Note 0000.md'}]},{type:'file',path:'Projects/Note 0001.md'}]}:null},
  commands:{commands:{},executeCommandById:()=>false},plugins:{getPlugin:()=>null},
 };
-const plugin:any={app,manifest:{id:'fjg-file-focus-duo'},settings:{...DEFAULT_SETTINGS,folderNote:false,excludedExtensions:'.PY, pyc'},keys:{activeFolderPathKey:'fixture-active',focusedFolder:'fixture-focus',pinnedFilesKey:'fixture-pins',openFoldersKey:'fixture-open'},VIEW_TYPE:'fjg-file-focus-duo-view',saveSettings:async()=>{},shouldBuildFolderTreeRecursively:()=>true,isMobilePerformanceModeEnabled:()=>false,shouldFollowActiveFile:()=>false,openFileTreeLeaf:async()=>{},registerFolderRevealListener:(fn:Function)=>{listeners.add(fn);return()=>listeners.delete(fn);},openInboxMorningBrief:()=>{},openVaultVoice:(selection:any)=>{(window as any).voiceSelection=selection;}};
+const plugin:any={app,manifest:{id:'fjg-file-focus-duo'},settings:{...DEFAULT_SETTINGS,folderNote:false,excludedExtensions:'.PY, pyc'},keys:{activeFolderPathKey:'fixture-active',focusedFolder:'fixture-focus',pinnedFilesKey:'fixture-pins',openFoldersKey:'fixture-open'},VIEW_TYPE:'fjg-file-focus-duo-view',saveSettings:async()=>{},shouldBuildFolderTreeRecursively:()=>true,isMobilePerformanceModeEnabled:()=>false,shouldFollowActiveFile:()=>false,openFileTreeLeaf:async()=>{},registerFolderRevealListener:(view:any,fn:(folder:TFolder)=>void)=>{listeners.set(view,fn);return()=>listeners.delete(view);},openInboxMorningBrief:()=>{},openVaultVoice:(selection:any)=>{(window as any).voiceSelection=selection;}};
 (window as any).fixture={plugin,app,root,projects,child,refresh:()=>window.dispatchEvent(new Event(eventTypes.refreshView)),reveal:(path:string)=>window.dispatchEvent(new CustomEvent(eventTypes.revealFile,{detail:{file:map.get(path)}})),setSetting:(key:string,value:any)=>{plugin.settings[key]=value;window.dispatchEvent(new Event(eventTypes.refreshView));}};
 (window as any).fixture.htmlState = {
     reads:()=>Object.fromEntries(htmlReads),
@@ -123,7 +124,37 @@ const plugin:any={app,manifest:{id:'fjg-file-focus-duo'},settings:{...DEFAULT_SE
         active:()=>workspace.activeLeaf.id,
     };
 };
-createRoot(document.getElementById('mount')!).render(<RecoilRoot><MainTreeComponent plugin={plugin} fileTreeView={{containerEl:document.getElementById('mount')} as any}/></RecoilRoot>);
+createRoot(document.getElementById('mount')!).render(<RecoilRoot><MainTreeComponent plugin={plugin} fileTreeView={fixtureView as any}/></RecoilRoot>);
+
+(window as any).fixture.objectiveFolderReveal = async (reuse: boolean, path: string) => {
+    const realPlugin = new (FileTreePlugin as any)();
+    const calls: string[] = [];
+    const workspace = app.workspace;
+    const tab = {
+        view: fixtureView, getRoot: () => mainRoot,
+        setViewState: async (state: {type: string}) => {
+            if (state.type !== realPlugin.VIEW_TYPE) throw Error('Wrong view type');
+            calls.push('mount-tab');
+        }
+    };
+    const sidebarView = {activate:()=>{}};
+    const sidebar = { view: sidebarView, getRoot: () => ({}) };
+    const objective = { view: {getViewType:()=> 'task-manager'}, getRoot:()=>mainRoot };
+    const sidebarListener = () => calls.push('changed-sidebar');
+    listeners.set(sidebarView, sidebarListener);
+    realPlugin.folderRevealListeners = listeners;
+    realPlugin.app = {...app, workspace:{
+        ...workspace, activeLeaf: objective,
+        getLeavesOfType: () => reuse ? [sidebar,tab] : [sidebar],
+        getLeaf: (placement: string) => { if(placement !== 'tab') throw Error('Not a new tab'); calls.push('new-tab'); return tab; },
+        revealLeaf: async (which: unknown) => { if (which !== tab) throw Error('Revealed wrong pane'); calls.push('revealed-tab'); },
+        setActiveLeaf: (which: unknown) => { if (which !== tab) throw Error('Activated wrong pane'); calls.push('active-tab'); },
+    }};
+    try { await realPlugin.revealFolderPath(path); }
+    catch (error) { calls.push((error as Error).message); }
+    finally { listeners.delete(sidebarView); }
+    return calls;
+};
 
 (window as any).testVisibilityImport=async()=>{
     const original={excludedExtensions:'.JS, .PDF',excludedFolders:'Private archive',hideAttachments:true,attachmentsFolderName:'Media',showOnlySupportedFileTypes:true,folderNote:true,showRootFolder:false,liveApiKey:'fixture-only-original-key'};

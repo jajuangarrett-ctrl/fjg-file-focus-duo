@@ -135,6 +135,17 @@ export function AdaptiveNavigator({plugin, fileTreeView, foldProfile, foldRemeas
         window.addEventListener(FOLDER_SELECTED, choose);
         return () => window.removeEventListener(FOLDER_SELECTED, choose);
     }, [wide, files]);
+    useEffect(() => {
+        const container = fileTreeView.containerEl;
+        const reveal = () => {
+            jumpGeneration.current++;
+            setShortcuts(false);
+            setTopFocus(false);
+            setJump(value => value + 1);
+        };
+        container.addEventListener(eventTypes.folderRevealInView, reveal);
+        return () => container.removeEventListener(eventTypes.folderRevealInView, reveal);
+    }, [fileTreeView]);
     const navigate = (target: TFolder) => {
         jumpGeneration.current++; pendingJump.current=false; currentPath.current=target.path; setTopFocus(false);
         setShortcuts(false);

@@ -2357,6 +2357,7 @@ var dayjs_minExports = dayjs_min.exports;
 var dayjs = /*@__PURE__*/getDefaultExportFromCjs(dayjs_minExports);
 
 const eventTypes = {
+    folderRevealInView: 'fjgduo-folder-reveal-in-view',
     activeFileChange: 'fjgduo-event-active-file-change',
     followActiveFileChange: 'fjg-file-focus-duo-follow-active-file-change',
     refreshView: 'fjgduo-event-refresh-view',
@@ -5473,6 +5474,17 @@ function AdaptiveNavigator({ plugin, fileTreeView, foldProfile, foldRemeasure })
         window.addEventListener(FOLDER_SELECTED, choose);
         return () => window.removeEventListener(FOLDER_SELECTED, choose);
     }, [wide, files]);
+    reactExports.useEffect(() => {
+        const container = fileTreeView.containerEl;
+        const reveal = () => {
+            jumpGeneration.current++;
+            setShortcuts(false);
+            setTopFocus(false);
+            setJump(value => value + 1);
+        };
+        container.addEventListener(eventTypes.folderRevealInView, reveal);
+        return () => container.removeEventListener(eventTypes.folderRevealInView, reveal);
+    }, [fileTreeView]);
     const navigate = (target) => {
         jumpGeneration.current++;
         pendingJump.current = false;
@@ -5810,7 +5822,7 @@ function MainTreeComponent(props) {
     };
     // --> Create Custom Event Handlers
     reactExports.useEffect(() => {
-        const unregisterFolderRevealListener = plugin.registerFolderRevealListener(revealFolderInFileTree);
+        const unregisterFolderRevealListener = plugin.registerFolderRevealListener(props.fileTreeView, revealFolderInFileTree);
         window.addEventListener(eventTypes.vaultChange, vaultChangeEvent);
         window.addEventListener(eventTypes.vaultChanges, vaultChangesEvent);
         window.addEventListener(eventTypes.activeFileChange, changeActiveFile);
@@ -6259,6 +6271,7 @@ function MainTreeComponent(props) {
         setView('file');
         const foldersToOpen = getAllFoldersToOpen(folderToReveal);
         setOpenFolders((currentOpenFolders) => Array.from(new Set([...currentOpenFolders, ...foldersToOpen])));
+        props.fileTreeView.containerEl.dispatchEvent(new CustomEvent(eventTypes.folderRevealInView));
         scrollToFolder(folderToReveal);
     }
     // --> Handle Reveal Active File Button
@@ -8709,7 +8722,7 @@ class VaultVoiceModal extends obsidian.Modal {
             yield leaf.openFile(file);
             this.voiceSelection.note = path;
             if (file.parent)
-                yield this.plugin.revealFolderPath(file.parent.path);
+                yield this.plugin.revealFolderPath(file.parent.path, { useExistingPane: true });
             yield workspace.revealLeaf(leaf);
             this.setCompact(true);
         });
@@ -9102,7 +9115,7 @@ class FileTreeAlternativePlugin extends obsidian.Plugin {
         this.ribbonIconEl = undefined;
         this.inboxMorningBriefRibbonIconEl = undefined;
         this.ribbonMutationObserver = undefined;
-        this.folderRevealListeners = new Set();
+        this.folderRevealListeners = new Map();
         this.mountedFileTreeViews = new Set();
         this.hydratingFileTreeLeaves = new WeakSet();
         this.mobileVaultChangeQueue = new DebouncedBatchQueue(250, (change) => `${change.changeType}:${change.oldPath}:${change.file.path}`, (changes) => {
@@ -9170,23 +9183,49 @@ class FileTreeAlternativePlugin extends obsidian.Plugin {
             }
             yield Promise.resolve(commands.executeCommandById(DELETE_CURRENT_FILE_COMMAND_ID));
         });
-        this.revealFolderPath = (folderPath) => __awaiter(this, void 0, void 0, function* () {
+        this.revealFolderPath = (folderPath, options) => __awaiter(this, void 0, void 0, function* () {
+            var _b;
             const folder = this.app.vault.getAbstractFileByPath(folderPath);
             if (!(folder instanceof obsidian.TFolder)) {
                 throw new Error(`Folder not found: ${folderPath}`);
             }
-            yield this.openFileTreeLeaf(true);
-            for (let attempt = 0; attempt < 12 && this.folderRevealListeners.size === 0; attempt += 1) {
-                yield new Promise((resolve) => window.requestAnimationFrame(() => resolve()));
+            if (obsidian.Platform.isMobile && !(options === null || options === void 0 ? void 0 : options.useExistingPane)) {
+                const workspace = this.app.workspace;
+                const tabs = workspace.getLeavesOfType(this.VIEW_TYPE)
+                    .filter(leaf => leaf.getRoot() === workspace.rootSplit);
+                let target = (_b = tabs.find(leaf => leaf === workspace.activeLeaf)) !== null && _b !== void 0 ? _b : tabs[0];
+                if (!target) {
+                    target = workspace.getLeaf('tab');
+                    yield target.setViewState({ type: this.VIEW_TYPE, active: true });
+                }
+                yield workspace.revealLeaf(target);
+                yield this.hydrateFileTreeLeaf(target, true);
+                if (!this.isFileTreeViewReady(target))
+                    throw new Error('FJG File Focus Duo tab is not ready.');
+                const view = target.view;
+                view.activate();
+                workspace.setActiveLeaf(target, { focus: false });
+                for (let attempt = 0; attempt < 24 && !this.folderRevealListeners.has(view); attempt += 1) {
+                    yield new Promise((resolve) => window.requestAnimationFrame(() => resolve()));
+                }
+                const reveal = this.folderRevealListeners.get(view);
+                if (!reveal)
+                    throw new Error('FJG File Focus Duo tab is not ready.');
+                reveal(folder);
+                return;
             }
+            yield this.openFileTreeLeaf(true);
             if (this.folderRevealListeners.size === 0) {
                 throw new Error('FJG File Focus Duo view is not ready.');
             }
             this.folderRevealListeners.forEach((listener) => listener(folder));
         });
-        this.registerFolderRevealListener = (listener) => {
-            this.folderRevealListeners.add(listener);
-            return () => this.folderRevealListeners.delete(listener);
+        this.registerFolderRevealListener = (view, listener) => {
+            this.folderRevealListeners.set(view, listener);
+            return () => {
+                if (this.folderRevealListeners.get(view) === listener)
+                    this.folderRevealListeners.delete(view);
+            };
         };
         this.bookmarksEventHandler = (event) => __awaiter(this, void 0, void 0, function* () {
             // Find the tree-item that includes the bookmarks plugin title
@@ -9326,13 +9365,13 @@ class FileTreeAlternativePlugin extends obsidian.Plugin {
             }
         };
         this.openInboxMorningBrief = () => __awaiter(this, void 0, void 0, function* () {
-            var _b, _c;
+            var _c, _d;
             const file = this.app.vault.getAbstractFileByPath(INBOX_MORNING_BRIEF_PATH);
             if (!(file instanceof obsidian.TFile)) {
                 new obsidian.Notice(`Inbox Morning Brief not found: ${INBOX_MORNING_BRIEF_PATH}`);
                 return;
             }
-            yield this.app.workspace.getLeaf(((_c = (_b = this.app.workspace.activeLeaf) === null || _b === void 0 ? void 0 : _b.view) === null || _c === void 0 ? void 0 : _c.getViewType()) === this.VIEW_TYPE).openFile(file);
+            yield this.app.workspace.getLeaf(((_d = (_c = this.app.workspace.activeLeaf) === null || _c === void 0 ? void 0 : _c.view) === null || _d === void 0 ? void 0 : _d.getViewType()) === this.VIEW_TYPE).openFile(file);
         });
         this.openFileTreeLeaf = (showAfterAttach) => __awaiter(this, void 0, void 0, function* () {
             const policy = this.getMobilePerformancePolicy(showAfterAttach);

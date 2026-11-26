@@ -540,7 +540,7 @@ export class VaultVoiceModal extends Modal {
     const leaf = existing || workspace.getLeaf('tab');
     await leaf.openFile(file);
     this.voiceSelection.note = path;
-    if (file.parent) await this.plugin.revealFolderPath(file.parent.path);
+    if (file.parent) await this.plugin.revealFolderPath(file.parent.path, { useExistingPane: true });
     await workspace.revealLeaf(leaf);
     this.setCompact(true);
   }
